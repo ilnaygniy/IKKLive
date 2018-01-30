@@ -6,7 +6,7 @@ package com.jqh.kklive.config;
 
 public class HttpConfig {
 
-    public static final String webDomain = "http://192.168.1.102:8086/im";
+    public static final String webDomain = "http://192.168.1.102:8086/live";
 
     public static final String login = "/user/login";
 
@@ -18,7 +18,12 @@ public class HttpConfig {
 
     public static final String getUserUrl = "/user/selfprofile";
 
-    public static final String uploadImage = "/upload/header";
+    public static final String uploadImage = "/upload/img";
+
+    public static final String createRoomUrl = "/room/createroom";
+
+    public static final String roomListUrl = "/room/list";
+
 
     public static final int REQUEST_GET = 0 ;
     public static final int REQUEST_POST = 1;
@@ -46,6 +51,14 @@ public class HttpConfig {
         return webDomain+getUserUrl;
     }
     public static String getUploadImage(){
-        return webDomain+uploadImage ;
+        return webDomain + uploadImage ;
+    }
+
+    public static String getCreateRoomUrl(){
+        return webDomain + createRoomUrl;
+    }
+
+    public static String getRoomListUrl(){
+        return webDomain+roomListUrl ;
     }
 }

@@ -8,6 +8,7 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import com.jqh.kklive.AppManager;
+import com.jqh.kklive.MainActivity;
 import com.jqh.kklive.R;
 import com.jqh.kklive.model.ErrorInfo;
 import com.jqh.kklive.model.GetUserResult;
@@ -76,7 +77,7 @@ public class LoginActivity extends BaseActivity {
                         // 获取用户信息
                         GetUserProfile(accoutStr);
                         Intent intent = new Intent();
-                        intent.setClass(LoginActivity.this,EditProfileActivity.class);
+                        intent.setClass(LoginActivity.this,MainActivity.class);
                         startActivity(intent);
                         finish();
                     }
@@ -124,7 +125,7 @@ public class LoginActivity extends BaseActivity {
                 //保存本地token
                 GetUserProfile(account);
                 Intent intent = new Intent();
-                intent.setClass(LoginActivity.this,EditProfileActivity.class);
+                intent.setClass(LoginActivity.this,MainActivity.class);
                 startActivity(intent);
                 finish();
             }

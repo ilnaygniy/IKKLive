@@ -81,6 +81,7 @@ public class OkHttpUtils {
             }else{
                 url += "&"+param;
             }
+            i++;
         }
         return url ;
     }
