@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/KKLive.iml" filepath="$PROJECT_DIR$/KKLive.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ikkavlivemodule/ikkavlivemodule.iml" filepath="$PROJECT_DIR$/ikkavlivemodule/ikkavlivemodule.iml" />
     </modules>
   </component>
 </project>

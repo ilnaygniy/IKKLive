@@ -94,6 +94,9 @@ public class CreateLiveActivity extends BaseActivity {
             public void onSuccess(Object obj) {
                 RoomInfo roomInfo = (RoomInfo)obj;
                 //
+                Intent intent = new Intent();
+                intent.setClass(CreateLiveActivity.this,HostLiveActivity.class);
+                startActivity(intent);
             }
 
             @Override
