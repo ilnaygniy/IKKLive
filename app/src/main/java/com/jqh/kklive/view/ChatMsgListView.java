@@ -13,10 +13,16 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.jqh.kklive.R;
 import com.jqh.kklive.model.ChatMsgInfo;
+import com.jqh.kklive.model.ErrorInfo;
+import com.jqh.kklive.model.UserProfile;
+import com.jqh.kklive.net.IKKFriendshipManager;
+import com.jqh.kklive.net.IKKLiveCallBack;
 import com.jqh.kklive.utils.ImgUtils;
+import com.jqh.kklive.widget.UserInfoDialog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,22 +72,23 @@ public class ChatMsgListView extends RelativeLayout {
     }
 
     private void showUserInfoDialog(String senderId) {
-        List<String> ids = new ArrayList<String>();
-        ids.add(senderId);
-//        TIMFriendshipManager.getInstance().getUsersProfile(ids, new TIMValueCallBack<List<TIMUserProfile>>() {
-//            @Override
-//            public void onError(int i, String s) {
-//            }
-//
-//            @Override
-//            public void onSuccess(List<TIMUserProfile> timUserProfiles) {
-//                Context context = ChatMsgListView.this.getContext();
-//                if(context instanceof  Activity) {
-//                    UserInfoDialog userInfoDialog = new UserInfoDialog((Activity) context, timUserProfiles.get(0));
-//                    userInfoDialog.show();
-//                }
-//            }
-//        });
+
+        IKKFriendshipManager.getInstance().selfprofile(senderId, new IKKLiveCallBack() {
+            @Override
+            public void onSuccess(Object obj) {
+                UserProfile userProfile = (UserProfile) obj;
+                Context context = ChatMsgListView.this.getContext();
+                if(context instanceof  Activity) {
+                    UserInfoDialog userInfoDialog = new UserInfoDialog((Activity) context, userProfile);
+                    userInfoDialog.show();
+                }
+            }
+
+            @Override
+            public void onError(ErrorInfo errorInfo) {
+                Toast.makeText(ChatMsgListView.this.getContext(),"获取用户信息失败",Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     public void addMsgInfo(ChatMsgInfo info) {

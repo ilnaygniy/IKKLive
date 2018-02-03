@@ -27,9 +27,8 @@ import com.jqh.kklive.view.DanmuView;
 import com.jqh.kklive.view.GiftFullView;
 import com.jqh.kklive.view.GiftRepeatView;
 import com.jqh.kklive.view.SizeChangeRelativeLayout;
+import com.jqh.kklive.view.TitleView;
 import com.jqh.kklive.widget.base.BaseActivity;
-
-import java.util.Random;
 
 import tyrantgit.widget.HeartLayout;
 
@@ -41,11 +40,14 @@ public class WatcherActivity extends BaseActivity {
     private ChatMsgListView mChatMsgListView ;
     private String roomId;
     private String title ;
+    private String hostId ;
     private DanmuView mDanmuView ;
     private GiftSelectDialog mGiftSelectDialog ;
     private GiftRepeatView giftRepeatView ;
     private GiftFullView giftFullView ;
     private HeartLayout heartLayout ;
+    private TitleView mTitleView ;
+
 
     @Override
     protected int getLayoutId() {
@@ -62,7 +64,9 @@ public class WatcherActivity extends BaseActivity {
         giftRepeatView = bindViewId(R.id.gift_repeat_view);
         giftFullView = bindViewId(R.id.gift_full_view);
         heartLayout = bindViewId(R.id.heartLayout);
+        mTitleView = bindViewId(R.id.title_view);
         setDefault();
+        mBottomControllView.setWatcher();
     }
 
     @Override
@@ -70,6 +74,21 @@ public class WatcherActivity extends BaseActivity {
 
         roomId = this.getIntent().getStringExtra("roomId");
         title = this.getIntent().getStringExtra("title");
+        hostId = this.getIntent().getStringExtra("hostId");
+
+        // 获取主播信息
+        IKKFriendshipManager.getInstance().selfprofile(hostId, new IKKLiveCallBack() {
+            @Override
+            public void onSuccess(Object obj) {
+                UserProfile userProfile = (UserProfile)obj;
+                mTitleView.setHost(userProfile);
+            }
+
+            @Override
+            public void onError(ErrorInfo errorInfo) {
+                Toast("获取主播信息失败:"+errorInfo.getErrMsg());
+            }
+        });
 
     }
 
@@ -78,6 +97,7 @@ public class WatcherActivity extends BaseActivity {
         mBottomControllView.setOnControlClickListener(new BottomControllView.OnControlClickListener() {
             @Override
             public void onCloseClick() {
+                // 退出教室
                 finish();
             }
 
@@ -95,6 +115,11 @@ public class WatcherActivity extends BaseActivity {
                     mGiftSelectDialog.setGiftSendListener(giftSendListener);
                 }
                 mGiftSelectDialog.show();
+            }
+
+            @Override
+            public void onOptionClick(View view) {
+
             }
         });
 
@@ -120,13 +145,30 @@ public class WatcherActivity extends BaseActivity {
                     public void run() {
                         ChatMsgInfo chatMsgInfo = ChatMsgInfo.createListInfo("进入房间", packet.getAccount(),packet.getHeader());
                         mChatMsgListView.addMsgInfo(chatMsgInfo);
+
+                        //用户进入直播
+                        UserProfile userProfile = new UserProfile();
+                        userProfile.setHeader(packet.getHeader());
+                        userProfile.setNickName(packet.getNickName());
+                        userProfile.setAccount(packet.getAccount());
+                        userProfile.setLevel(packet.getLevel());
+
+                        mTitleView.addWatcher(userProfile);
+                        // mVipEnterView.showVipEnter(userProfile);
                     }
                 });
             }
 
             @Override
-            public void onUserOut(String id) {
-
+            public void onUserOut(final String id) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        UserProfile userProfile = new UserProfile();
+                        userProfile.setAccount(id);
+                        mTitleView.removeWatcher(userProfile);
+                    }
+                });
             }
 
             @Override

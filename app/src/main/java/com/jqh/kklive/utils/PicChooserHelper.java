@@ -72,8 +72,13 @@ public class PicChooserHelper {
     }
 
     private void takePicFromAlbum() {
-        Intent picIntent = new Intent("android.intent.action.GET_CONTENT");
-        picIntent.setType("image/*");
+        Intent picIntent = new Intent(Intent.ACTION_PICK, null);
+        picIntent.setDataAndType(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                "image/*");
+
+//        Intent picIntent = new Intent("android.intent.action.GET_CONTENT");
+//        picIntent.setType("image/*");
         if (mFragment == null) {
             mActivity.startActivityForResult(picIntent, FROM_ALBUM);
         } else {

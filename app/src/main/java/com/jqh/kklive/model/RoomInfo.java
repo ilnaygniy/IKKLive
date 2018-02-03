@@ -20,6 +20,7 @@ public class RoomInfo {
     private String userName;
 
     @Expose
+    @SerializedName("userAvater")
     private String userAvatar;
 
     @Expose
@@ -29,7 +30,7 @@ public class RoomInfo {
     private String liveTitle;
 
     @Expose
-    private int watcherNums;
+    private int watcherNum;
 
     public int getRoomId() {
         return roomId;
@@ -80,10 +81,10 @@ public class RoomInfo {
     }
 
     public int getWatcherNums() {
-        return watcherNums;
+        return watcherNum;
     }
 
     public void setWatcherNums(int watcherNums) {
-        this.watcherNums = watcherNums;
+        this.watcherNum = watcherNums;
     }
 }

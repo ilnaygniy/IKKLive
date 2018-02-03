@@ -9,13 +9,25 @@
         android:id="@+id/live_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+    <com.jqh.kklive.view.TitleView
+        android:id="@+id/title_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+    <tyrantgit.widget.HeartLayout
+        android:id="@+id/heartLayout"
+        android:layout_width="100dp"
+        android:layout_height="match_parent"
+        android:paddingBottom="50dp"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true"
+        />
 
     <com.jqh.kklive.view.BottomControllView
         android:id="@+id/control_view"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-       />
+        />
 
     <com.jqh.kklive.view.ChatView
         android:id="@+id/chat_view"
@@ -47,4 +59,15 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_above="@id/chat_list_view" />
+
+    <com.jqh.kklive.view.GiftRepeatView
+        android:id="@+id/gift_repeat_view"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_above="@id/chat_list_view" />
+
+    <com.jqh.kklive.view.GiftFullView
+        android:id="@+id/gift_full_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 </com.jqh.kklive.view.SizeChangeRelativeLayout>

@@ -202,6 +202,7 @@ public class LiveListFragment extends BaseFragment {
                         intent.setClass(mContext, WatcherActivity.class);
                         intent.putExtra("roomId", roomInfo.getRoomId()+"");
                         intent.putExtra("title", roomInfo.getLiveTitle());
+                        intent.putExtra("hostId",roomInfo.getUserId());
                         startActivity(intent);
                     }
                 });
