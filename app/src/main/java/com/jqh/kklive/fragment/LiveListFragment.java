@@ -19,6 +19,7 @@ import com.jqh.kklive.model.RoomInfo;
 import com.jqh.kklive.net.IKKLiveCallBack;
 import com.jqh.kklive.net.IKKLiveListManager;
 import com.jqh.kklive.utils.ImgUtils;
+import com.jqh.kklive.widget.WatcherActivity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -197,11 +198,11 @@ public class LiveListFragment extends BaseFragment {
                 itemView.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-//                        Intent intent = new Intent();
-//                        intent.setClass(mContext, WatcherActivity.class);
-//                        intent.putExtra("roomId", roomInfo.roomId);
-//                        intent.putExtra("hostId", roomInfo.userId);
-//                        startActivity(intent);
+                        Intent intent = new Intent();
+                        intent.setClass(mContext, WatcherActivity.class);
+                        intent.putExtra("roomId", roomInfo.getRoomId()+"");
+                        intent.putExtra("title", roomInfo.getLiveTitle());
+                        startActivity(intent);
                     }
                 });
             }

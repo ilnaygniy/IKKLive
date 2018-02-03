@@ -96,6 +96,8 @@ public class CreateLiveActivity extends BaseActivity {
                 //
                 Intent intent = new Intent();
                 intent.setClass(CreateLiveActivity.this,HostLiveActivity.class);
+                intent.putExtra("roomId",roomInfo.getRoomId()+"");
+                intent.putExtra("title",roomInfo.getLiveTitle());
                 startActivity(intent);
             }
 

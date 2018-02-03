@@ -19,7 +19,7 @@ import com.jqh.kklive.view.ChatView;
 import com.jqh.kklive.view.SizeChangeRelativeLayout;
 import com.jqh.kklive.widget.base.BaseActivity;
 
-public class HostLiveActivity extends BaseActivity {
+public class WatcherActivity extends BaseActivity {
 
     private BottomControllView mBottomControllView ;
     private ChatView mChatView ;
@@ -30,7 +30,7 @@ public class HostLiveActivity extends BaseActivity {
 
     @Override
     protected int getLayoutId() {
-        return R.layout.activity_host_live;
+        return R.layout.activity_watcher;
     }
 
     @Override
@@ -62,6 +62,7 @@ public class HostLiveActivity extends BaseActivity {
             public void onChatClick() {
                 mBottomControllView.setVisibility(View.INVISIBLE);
                 mChatView.setVisibility(View.VISIBLE);
+                KeybordS.openKeybord(mChatView.chatContent,WatcherActivity.this);
             }
         });
 
@@ -81,6 +82,7 @@ public class HostLiveActivity extends BaseActivity {
         IKKIMManager.getInstance().setOnIKKLiveMsgListener(new IKKIMManager.OnIKKLiveMsgListener() {
             @Override
             public void onUserIn(final IMMsgPacket packet) {
+
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -96,7 +98,7 @@ public class HostLiveActivity extends BaseActivity {
             }
 
             @Override
-            public void onNewMsg( final IMMsgPacket packet) {
+            public void onNewMsg(final IMMsgPacket packet) {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -104,6 +106,7 @@ public class HostLiveActivity extends BaseActivity {
                         mChatMsgListView.addMsgInfo(chatMsgInfo);
                     }
                 });
+
             }
 
             @Override
@@ -122,11 +125,12 @@ public class HostLiveActivity extends BaseActivity {
                 }
                 // 发送消息
                 IKKIMManager.getInstance().sendChatMsgForList(content);
+
                 // close input
                 mBottomControllView.setVisibility(View.VISIBLE);
                 mChatView.setVisibility(View.INVISIBLE);
 
-                KeybordS.closeKeybord(mChatView.chatContent,HostLiveActivity.this);
+                KeybordS.closeKeybord(mChatView.chatContent,WatcherActivity.this);
 
             }
         });
@@ -161,6 +165,6 @@ public class HostLiveActivity extends BaseActivity {
     }
 
     private void Toast(String tip){
-        Toast.makeText(HostLiveActivity.this,tip,Toast.LENGTH_SHORT).show();
+        Toast.makeText(WatcherActivity.this,tip,Toast.LENGTH_SHORT).show();
     }
 }

@@ -6,7 +6,7 @@ package com.jqh.kklive.config;
 
 public class HttpConfig {
 
-    public static final String webDomain = "http://192.168.1.105:8086/live";
+    public static final String webDomain = "http://192.168.1.103:8086/live";
 
     public static final String login = "/user/login";
 
