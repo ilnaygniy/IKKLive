@@ -18,9 +18,12 @@ import com.jqh.kklive.model.ErrorInfo;
 import com.jqh.kklive.model.UserProfile;
 import com.jqh.kklive.net.IKKFriendshipManager;
 import com.jqh.kklive.net.IKKLiveCallBack;
+import com.jqh.kklive.net.IKKLiveLoginManager;
+import com.jqh.kklive.utils.DiskLruCacheUtils;
 import com.jqh.kklive.utils.ImgUtils;
 import com.jqh.kklive.utils.PicChooserHelper;
 import com.jqh.kklive.widget.EditProfileActivity;
+import com.jqh.kklive.widget.LoginActivity;
 import com.jqh.kklive.widget.ProfileEdit;
 import com.jqh.kklive.widget.ProfileTextView;
 
@@ -44,6 +47,7 @@ public class EditProfileFragment extends BaseFragment {
     private ProfileTextView mSendNumsView;
 
     private Button mCompleteBtn;
+    private Button logoutBtn ;
 
     @Override
     protected int getLayoutId() {
@@ -69,6 +73,7 @@ public class EditProfileFragment extends BaseFragment {
         mSendNumsView = bindViewId(R.id.send_nums);
 
         mCompleteBtn = bindViewId(R.id.complete);
+        logoutBtn = bindViewId(R.id.logout);
     }
 
     @Override
@@ -95,6 +100,7 @@ public class EditProfileFragment extends BaseFragment {
         mRenzhengEdt.setOnClickListener(clickListener);
         mLocationEdt.setOnClickListener(clickListener);
         mCompleteBtn.setOnClickListener(clickListener);
+        logoutBtn.setOnClickListener(clickListener);
     }
 
     private void updateView(){
@@ -148,6 +154,42 @@ public class EditProfileFragment extends BaseFragment {
                 Intent intent = new Intent();
                 intent.setClass(getContext(), MainActivity.class);
                 startActivity(intent);
+            }else if(id == R.id.logout){
+                // 退出账户
+                String token = null;
+                try {
+                    token = DiskLruCacheUtils.getInstance().get("autotoken");
+                }catch (Exception e){
+
+                }
+                if(token == null)
+                    return ;
+                IKKLiveLoginManager.getInstance().sigout(token, new IKKLiveCallBack() {
+                    @Override
+                    public void onSuccess(Object obj) {
+                        //  退出
+                        //  删除本地token
+                        try{
+
+                            DiskLruCacheUtils.getInstance().del("autotoken");
+
+                            // 回到登录
+                            Intent intent = new Intent();
+                            intent.setClass(getContext(),LoginActivity.class);
+                            startActivity(intent);
+
+                            getActivity().finish();
+                        }catch (Exception e){
+                            Toast(e.getMessage());
+                        }
+
+                    }
+
+                    @Override
+                    public void onError(ErrorInfo errorInfo) {
+                        Toast("退出失败:"+errorInfo.getErrMsg());
+                    }
+                });
             }
         }
     };

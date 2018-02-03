@@ -4,6 +4,7 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.CheckBox;
 import android.widget.RelativeLayout;
 
 import com.jqh.kklive.R;
@@ -17,6 +18,7 @@ public class BottomControllView extends RelativeLayout {
     public interface OnControlClickListener{
         void onCloseClick();
         void onChatClick();
+        void onGiftClick();
     }
 
     private OnControlClickListener mOnControlClickListener;
@@ -54,6 +56,10 @@ public class BottomControllView extends RelativeLayout {
             else if(v.getId() == R.id.chat){
                 if(mOnControlClickListener != null)
                     mOnControlClickListener.onChatClick();
+            }
+            else if(v.getId() == R.id.option){
+                if(mOnControlClickListener != null)
+                    mOnControlClickListener.onGiftClick();
             }
         }
     };

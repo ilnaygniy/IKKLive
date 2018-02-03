@@ -113,7 +113,7 @@ public class LoginActivity extends BaseActivity {
         }catch (Exception e){
 
         }
-        if(token == null)
+        if(TextUtils.isEmpty(token))
             return ;
         //登陆
         IKKLiveLoginManager.getInstance().liveAutoLogin(token, new IKKLiveCallBack() {

@@ -37,4 +37,5 @@ dependencies {
     compile 'jp.wasabeef:glide-transformations:2.0.1'
     compile project(':ikkavlivemodule')
     compile "org.java-websocket:Java-WebSocket:1.3.7"
+    compile 'tyrant:heartlayout:1.0.1'
 }

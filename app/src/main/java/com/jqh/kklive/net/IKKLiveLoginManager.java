@@ -241,4 +241,47 @@ public class IKKLiveLoginManager {
         liveRegister(accountStr,passwordStr,true,listener);
     }
 
+    /**
+     * 登出操作
+     * @param token
+     * @param listener
+     */
+    public void sigout(String token,final IKKLiveCallBack listener){
+        Map<String,String> params = new HashMap<>();
+        params.put("token",token);
+
+        OkHttpUtils.excute(HttpConfig.getSigoutUrl(), HttpConfig.REQUEST_POST, params,new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                ErrorInfo errorInfo = new ErrorInfo();
+                errorInfo.setErrCode(001);
+                errorInfo.setErrMsg(e.getMessage());
+                errorInfo.setModule("sigout");
+                ErrorMessage message = new ErrorMessage(errorInfo, listener);
+                Poster.getInstance().post(message);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String result = response.body().string();
+                RequestResult loginResult = AppManager.getGson().fromJson(result,RequestResult.class);
+                if(response.isSuccessful() && loginResult.getCode() == 0){
+                    SuccessMessage message = new SuccessMessage(loginResult,listener);
+                    Poster.getInstance().post(message);
+                }
+                else
+                {
+                    ErrorInfo errorInfo = new ErrorInfo();
+                    errorInfo.setErrCode(loginResult.getCode());
+                    errorInfo.setErrMsg(loginResult.getMsg());
+                    errorInfo.setModule("sigout");
+                    ErrorMessage message = new ErrorMessage(errorInfo, listener);
+                    Poster.getInstance().post(message);
+                }
+            }
+        });
+
+    }
+
+
 }

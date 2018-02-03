@@ -112,6 +112,15 @@
                 android:background="@drawable/btn_bkg_red_rect_round"
                 android:text="完成"
                 android:textColor="@android:color/holo_blue_dark" />
+
+            <Button
+                android:id="@+id/logout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="20dp"
+                android:background="@drawable/btn_bkg_red_rect_round"
+                android:text="退出账号"
+                android:textColor="@android:color/holo_blue_dark" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

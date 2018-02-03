@@ -10,12 +10,14 @@ import com.jqh.kklive.AppManager;
 import com.jqh.kklive.R;
 import com.jqh.kklive.im.IKKIMManager;
 import com.jqh.kklive.im.IMMsgPacket;
+import com.jqh.kklive.im.IMUtils;
 import com.jqh.kklive.model.ChatMsgInfo;
 import com.jqh.kklive.model.UserProfile;
 import com.jqh.kklive.utils.KeybordS;
 import com.jqh.kklive.view.BottomControllView;
 import com.jqh.kklive.view.ChatMsgListView;
 import com.jqh.kklive.view.ChatView;
+import com.jqh.kklive.view.DanmuView;
 import com.jqh.kklive.view.SizeChangeRelativeLayout;
 import com.jqh.kklive.widget.base.BaseActivity;
 
@@ -27,6 +29,7 @@ public class HostLiveActivity extends BaseActivity {
     private ChatMsgListView mChatMsgListView ;
     private String roomId;
     private String title ;
+    private DanmuView mDanmuView ;
 
     @Override
     protected int getLayoutId() {
@@ -39,6 +42,7 @@ public class HostLiveActivity extends BaseActivity {
         mChatView = bindViewId(R.id.chat_view);
         mSizeChangeRelativeLayout = bindViewId(R.id.activity_host_live);
         mChatMsgListView = bindViewId(R.id.chat_list);
+        mDanmuView = bindViewId(R.id.danmu_view);
         setDefault();
     }
 
@@ -62,6 +66,11 @@ public class HostLiveActivity extends BaseActivity {
             public void onChatClick() {
                 mBottomControllView.setVisibility(View.INVISIBLE);
                 mChatView.setVisibility(View.VISIBLE);
+            }
+
+            @Override
+            public void onGiftClick() {
+
             }
         });
 
@@ -101,9 +110,27 @@ public class HostLiveActivity extends BaseActivity {
                     @Override
                     public void run() {
                         ChatMsgInfo chatMsgInfo = ChatMsgInfo.createListInfo(packet.getContent(), packet.getAccount(),packet.getHeader());
+                        if(packet.getMsgType() == IMUtils.CMD_CHAT_MSG_DANMU)
+                        {
+                            mDanmuView.addMsgInfo(chatMsgInfo);
+                        }
+                        else{
+
+                            mChatMsgListView.addMsgInfo(chatMsgInfo);
+                        }
                         mChatMsgListView.addMsgInfo(chatMsgInfo);
                     }
                 });
+            }
+
+            @Override
+            public void onGiftMsg(IMMsgPacket packet) {
+
+            }
+
+            @Override
+            public void onHeartMsg(IMMsgPacket packet) {
+
             }
 
             @Override

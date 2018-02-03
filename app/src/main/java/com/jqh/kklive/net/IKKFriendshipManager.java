@@ -134,5 +134,53 @@ public class IKKFriendshipManager {
 
     }
 
+    /**
+     * 发送礼物
+     * @param roomId
+     * @param sendId
+     * @param giftId
+     * @param num
+     */
+    public void sendGift(int roomId , String sendId , int giftId, int num,final IKKLiveCallBack listener){
+        Map<String,String> params = new HashMap<>();
+        params.put("roomId",roomId+"");
+        params.put("sendUserId",sendId);
+        params.put("giftId",giftId+"");
+        params.put("num",num+"");
+        OkHttpUtils.excute(HttpConfig.getSendGiftUtl(), HttpConfig.REQUEST_POST,params, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                ErrorInfo errorInfo = new ErrorInfo();
+                errorInfo.setErrCode(-104);
+                errorInfo.setErrMsg(e.getMessage());
+                errorInfo.setModule("updateUserProfile");
+                ErrorMessage message = new ErrorMessage(errorInfo, listener);
+                Poster.getInstance().post(message);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                RequestResult requestResult = AppManager.getGson().fromJson(response.body().string(),RequestResult.class);
+                if(requestResult.getCode() == GetUserResult.OK_RESULT
+                        && response.isSuccessful()){
+
+                    SuccessMessage message = new SuccessMessage(requestResult.getData(),listener);
+                    Poster.getInstance().post(message);
+                }
+                else
+                {
+                    ErrorInfo errorInfo = new ErrorInfo();
+                    errorInfo.setErrCode(requestResult.getCode());
+                    errorInfo.setErrMsg(requestResult.getMsg());
+                    errorInfo.setModule("sendGift");
+                    ErrorMessage message = new ErrorMessage(errorInfo, listener);
+                    Poster.getInstance().post(message);
+                }
+            }
+        });
+
+
+    }
+
 
 }

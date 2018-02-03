@@ -191,6 +191,10 @@ public class DiskLruCacheUtils {
         editor.commit();
     }
 
+    public void del(String key) throws Exception{
+        set(key,"");
+    }
+
     public String get(String key) throws Exception{
         DiskLruCache.Snapshot snapshot = null ;
         try {

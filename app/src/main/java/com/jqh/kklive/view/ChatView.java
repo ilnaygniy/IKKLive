@@ -79,6 +79,10 @@ public class ChatView extends LinearLayout {
         void onSendClick(String content);
     }
 
+    public boolean isDanMuModel(){
+        return checkMode.isChecked();
+    }
+
 }
 
 

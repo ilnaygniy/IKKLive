@@ -41,4 +41,10 @@
             android:layout_height="200dp"
             android:layout_weight="1" />
     </LinearLayout>
+
+    <com.jqh.kklive.view.DanmuView
+        android:id="@+id/danmu_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/chat_list_view" />
 </com.jqh.kklive.view.SizeChangeRelativeLayout>

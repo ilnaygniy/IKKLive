@@ -2,8 +2,6 @@ package com.jqh.kklive.im;
 
 import com.jqh.kklive.AppManager;
 import com.jqh.kklive.model.UserProfile;
-import com.jqh.kklive.task.Poster;
-import com.jqh.kklive.task.SuccessMessage;
 
 import org.java_websocket.drafts.Draft_6455;
 
@@ -33,9 +31,15 @@ public class IKKIMManager {
                         break;
                     case IMUtils.CMD_CHAT_MSG_LIST:
                     case IMUtils.CMD_CHAT_MSG_DANMU:
-                    case IMUtils.CMD_CHAT_GIFT:
                         mOnIKKLiveMsgListener.onNewMsg(packet);
                         break;
+                    case IMUtils.CMD_CHAT_GIFT:
+                        mOnIKKLiveMsgListener.onGiftMsg(packet);
+                        break;
+                    case IMUtils.CMD_CHAT_HEART:
+                        mOnIKKLiveMsgListener.onHeartMsg(packet);
+                        break;
+
                 }
 
             }
@@ -58,6 +62,7 @@ public class IKKIMManager {
                 mOnIKKLiveMsgListener.onError(-1,ex.getMessage());
         }
     };
+
 
     private static IKKIMManager instance ;
 
@@ -113,6 +118,26 @@ public class IKKIMManager {
     }
 
     /**
+     * 发送礼物
+     * @param content
+     */
+    public void sendChatMsgForGift(String content){
+        IMMsgPacket packet = newPack();
+        packet.setMsgType(IMUtils.CMD_CHAT_GIFT);
+        sendChatMsg(packet,content);
+    }
+
+    /**
+     * 发送心心
+     * @param content
+     */
+    public void sendChatMsgForHeart(String content){
+        IMMsgPacket packet = newPack();
+        packet.setMsgType(IMUtils.CMD_CHAT_HEART);
+        sendChatMsg(packet,content);
+    }
+
+    /**
      * 发送聊天
      * @param content
      */
@@ -160,6 +185,10 @@ public class IKKIMManager {
         void onUserOut(String id);
 
         void onNewMsg(IMMsgPacket packet);
+
+        void onGiftMsg(IMMsgPacket packet);
+
+        void onHeartMsg(IMMsgPacket packet);
 
         void onError(int code , String msg);
 

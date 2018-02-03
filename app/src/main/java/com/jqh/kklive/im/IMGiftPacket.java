@@ -4,10 +4,10 @@ import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 /**
- * Created by jiangqianghua on 18/2/2.
+ * Created by jiangqianghua on 18/2/3.
  */
 
-public class IMMsgPacket {
+public class IMGiftPacket {
 
     @Expose
     @SerializedName("account")
@@ -32,7 +32,6 @@ public class IMMsgPacket {
     @Expose
     @SerializedName("msgType")
     private int msgType ;
-
 
     public String getAccount() {
         return account;

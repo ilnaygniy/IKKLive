@@ -10,6 +10,8 @@ public class HttpConfig {
 
     public static final String login = "/user/login";
 
+    public static final String sigout = "/user/sigout";
+
     public static final String autoLogin = "/user/autologin";
 
     public static final String register = "/user/register";
@@ -24,6 +26,8 @@ public class HttpConfig {
 
     public static final String roomListUrl = "/room/list";
 
+    public static final String sendGiftUtl = "/user/sendgift";
+
 
     public static final int REQUEST_GET = 0 ;
     public static final int REQUEST_POST = 1;
@@ -34,6 +38,9 @@ public class HttpConfig {
         return webDomain + login;
     }
 
+    public static String getSigoutUrl(){
+        return webDomain+sigout;
+    }
 
     public static String getLiveRegisterUrl(){
         return webDomain+register;
@@ -60,5 +67,9 @@ public class HttpConfig {
 
     public static String getRoomListUrl(){
         return webDomain+roomListUrl ;
+    }
+
+    public static String getSendGiftUtl(){
+        return webDomain+sendGiftUtl;
     }
 }
