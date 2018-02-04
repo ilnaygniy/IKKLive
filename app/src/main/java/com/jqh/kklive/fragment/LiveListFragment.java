@@ -1,8 +1,13 @@
 package com.jqh.kklive.fragment;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Point;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.v4.widget.SwipeRefreshLayout;
+import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -10,6 +15,7 @@ import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -19,6 +25,7 @@ import com.jqh.kklive.model.RoomInfo;
 import com.jqh.kklive.net.IKKLiveCallBack;
 import com.jqh.kklive.net.IKKLiveListManager;
 import com.jqh.kklive.utils.ImgUtils;
+import com.jqh.kklive.view.PullLoadRecyclerView;
 import com.jqh.kklive.widget.WatcherActivity;
 
 import java.util.ArrayList;
@@ -30,19 +37,21 @@ import java.util.List;
 
 public class LiveListFragment extends BaseFragment {
 
-    private ListView mLiveListView;
     private LiveListAdapter mLiveListAdapter;
-    private SwipeRefreshLayout mSwipeRefreshLayout;
-
+    private PullLoadRecyclerView mSwipeRefreshLayout;
+    public static final int REFRESH_DURATION = 1500;//刷新时长，毫秒
+    public static final int LOADMORE_DURATION = 3000;//刷新时长，毫秒
     private int page = 0 ;
 
-    private int size = 10 ;
+    private int size = 8 ;
 
+    private int colums = 1 ;
+    private Handler mHandler = new Handler(Looper.getMainLooper());// 在主线程
     @Override
     protected void initView() {
 
-        mLiveListView = bindViewId(R.id.live_list);
         mSwipeRefreshLayout = bindViewId(R.id.swipe_refresh_layout_list);
+        mSwipeRefreshLayout.setGridLayout(colums);
 
     }
 
@@ -53,37 +62,55 @@ public class LiveListFragment extends BaseFragment {
 
     @Override
     protected void initData() {
-        mLiveListAdapter = new LiveListAdapter(getContext());
-        mLiveListView.setAdapter(mLiveListAdapter);
-        page = 0 ;
-        requestLiveList();
+
+        reOnRresh();
     }
 
     @Override
     protected void initEvent() {
 
-        mSwipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+        mSwipeRefreshLayout.setOnPullLoadMoreListener(new PullLoadRecyclerView.OnPullLoadMoreListener() {
             @Override
-            public void onRefresh() {
-                requestLiveList();
+            public void reRresh() {
+                //刷新数据
+
+                reOnRresh();
+            }
+
+            @Override
+            public void loadMore() {
+                // 加载数据
+                loadOnMore();
             }
         });
     }
 
-    private void requestLiveList(){
+    private void reOnRresh(){
+        page = 0 ;
+        mLiveListAdapter = null;
+        mLiveListAdapter = new LiveListAdapter(getContext());
+        mSwipeRefreshLayout.setAdapter(mLiveListAdapter);
+        mLiveListAdapter.setColums(colums);
+        loadOnMore();
+    }
+
+    private void loadOnMore(){
         page++ ;
         IKKLiveListManager.getInstance().requestLiveList(page, size, new IKKLiveCallBack() {
             @Override
             public void onSuccess(Object obj) {
+
                 List<RoomInfo> roomInfoList = (List<RoomInfo>)obj ;
-                mSwipeRefreshLayout.setRefreshing(false);
-                mLiveListAdapter.removeAllRoomInfos();
-                mLiveListAdapter.addRoomInfos(roomInfoList);
+                for(RoomInfo roomInfo:roomInfoList){
+                    mLiveListAdapter.setData(roomInfo);
+                }
+                mLiveListAdapter.notifyDataSetChanged();
+                mSwipeRefreshLayout.setRefreshCompleted();
+                mSwipeRefreshLayout.setLoadMoreCompleted();
             }
 
             @Override
             public void onError(ErrorInfo errorInfo) {
-                mSwipeRefreshLayout.setRefreshing(false);
                 Toast("拉取列表失败..."+errorInfo.getErrMsg());
             }
         });
@@ -92,60 +119,66 @@ public class LiveListFragment extends BaseFragment {
     private void Toast(String tip){
         Toast.makeText(getActivity(),tip,Toast.LENGTH_SHORT).show();
     }
-    private class LiveListAdapter extends BaseAdapter {
 
+
+    private class LiveListAdapter extends RecyclerView.Adapter {
+
+        @Override
+        public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            View view = ((Activity)mContext).getLayoutInflater().inflate(R.layout.item_live_list,null);
+            RoomHolder itemViewHolder = new RoomHolder(view);
+            view.setTag(itemViewHolder);
+            return itemViewHolder;
+        }
+
+        @Override
+        public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
+
+            RoomInfo roomInfo = getItem(position);
+            if(holder instanceof RoomHolder){
+                RoomHolder roomHolder = (RoomHolder)holder;
+                roomHolder.bindData(roomInfo);
+            }
+        }
+        @Override
+        public void onBindViewHolder(RecyclerView.ViewHolder holder, int position, List payloads) {
+            super.onBindViewHolder(holder, position, payloads);
+        }
+
+        @Override
+        public int getItemCount() {
+            if(liveRooms == null || liveRooms.size() == 0)
+                return 0 ;
+            return liveRooms.size() ;
+        }
+
+        private RoomInfo getItem(int pos){
+            return liveRooms.get(pos);
+        }
         private Context mContext;
         private List<RoomInfo> liveRooms = new ArrayList<RoomInfo>();
+        private int columns ;
+
+        public void setColums(int columns)
+        {
+            this.columns = columns ;
+        }
 
         public LiveListAdapter(Context context) {
             this.mContext = context;
         }
 
-        public void removeAllRoomInfos() {
-            liveRooms.clear();
+        public void setData(RoomInfo roomInfo){
+            liveRooms.add(roomInfo);
         }
-
-        public void addRoomInfos(List<RoomInfo> roomInfos) {
-            if (roomInfos != null) {
-                liveRooms.clear();
-                liveRooms.addAll(roomInfos);
-                notifyDataSetChanged();
-            }
-        }
-
-        @Override
-        public int getCount() {
-            return liveRooms.size();
-        }
-
-        @Override
-        public RoomInfo getItem(int position) {
-            return liveRooms.get(position);
-        }
-
         @Override
         public long getItemId(int position) {
             return position;
         }
 
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            RoomHolder holder = null;
-            if (convertView == null) {
-                convertView = LayoutInflater.from(mContext).inflate(R.layout.item_live_list, null);
-                holder = new RoomHolder(convertView);
-                convertView.setTag(holder);
-            } else {
-                holder = (RoomHolder) convertView.getTag();
-            }
-
-            holder.bindData(liveRooms.get(position));
-
-            return convertView;
-        }
 
 
-        private class RoomHolder {
+        private class RoomHolder extends RecyclerView.ViewHolder{
 
             View itemView;
             TextView liveTitle;
@@ -154,7 +187,9 @@ public class LiveListFragment extends BaseFragment {
             TextView hostName;
             TextView watchNums;
 
+
             public RoomHolder(View view) {
+                super(view);
                 itemView = view;
                 liveTitle = (TextView) view.findViewById(R.id.live_title);
                 liveCover = (ImageView) view.findViewById(R.id.live_cover);
@@ -178,10 +213,16 @@ public class LiveListFragment extends BaseFragment {
                     this.liveTitle.setText(liveTitleStr);
                 }
                 String url = roomInfo.getLiveCover();
+
+                Point point = null;
+                point = ImgUtils.getHorPostSize(mContext,columns);
+                RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(point.x,point.y);
+                liveCover.setLayoutParams(params);
+
                 if (TextUtils.isEmpty(url)) {
                     ImgUtils.load(R.mipmap.default_cover, liveCover);
                 } else {
-                    ImgUtils.load(url, liveCover);
+                    ImgUtils.disPlayImage(url, liveCover,point.x,point.y);
                 }
 
                 String avatar = roomInfo.getUserAvatar();

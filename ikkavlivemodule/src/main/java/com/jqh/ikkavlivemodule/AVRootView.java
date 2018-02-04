@@ -35,6 +35,9 @@ public class AVRootView extends SurfaceView implements SurfaceHolder.Callback,Ca
     public AVRootView(Context context) {
         super(context);
         initData(context);
+
+
+
         //ILVLiveManager.getInstance().setAvVideoView();
 
     }

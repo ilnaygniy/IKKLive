@@ -19,6 +19,12 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    sourceSets{
+        main{
+            jniLibs.srcDirs  "src/main/libs" //  指定so的路径
+            jni.srcDirs = [] // 禁止gradle自己去自动编译ndk，我们使用的方式是cmd中ndk-build方式
+        }
+    }
 }
 
 dependencies {
