@@ -138,7 +138,8 @@ public class HostLiveActivity extends BaseActivity {
                     public void run() {
                         ChatMsgInfo chatMsgInfo = ChatMsgInfo.createListInfo("进入房间", packet.getAccount(),packet.getHeader());
                         mChatMsgListView.addMsgInfo(chatMsgInfo);
-
+                        if(AppManager.getUserProfile().getAccount().equals(packet.getAccount()))
+                            return ;
                         //用户进入直播
                         UserProfile userProfile = new UserProfile();
                         userProfile.setHeader(packet.getHeader());
@@ -147,51 +148,59 @@ public class HostLiveActivity extends BaseActivity {
                         userProfile.setLevel(packet.getLevel());
 
                         mTitleView.addWatcher(userProfile);
-                       // mVipEnterView.showVipEnter(userProfile);
                     }
                 });
             }
 
             @Override
-            public void onUserOut(final String id) {
+            public void onUserOut(final IMMsgPacket packet) {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+
+                        ChatMsgInfo chatMsgInfo = ChatMsgInfo.createListInfo("退出房间", packet.getAccount(),packet.getHeader());
+                        mChatMsgListView.addMsgInfo(chatMsgInfo);
+
                         UserProfile userProfile = new UserProfile();
-                        userProfile.setAccount(id);
+                        userProfile.setAccount(packet.getAccount());
                         mTitleView.removeWatcher(userProfile);
+
+
                     }
                 });
             }
 
             @Override
-            public void onNewMsg(final IMMsgPacket packet) {
+            public void onNewMsgList(final IMMsgPacket packet, final String content) {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        ChatMsgInfo chatMsgInfo = ChatMsgInfo.createListInfo(packet.getContent(), packet.getAccount(),packet.getHeader());
-                        if(packet.getMsgType() == IMUtils.CMD_CHAT_MSG_DANMU)
-                        {
-                            mDanmuView.addMsgInfo(chatMsgInfo);
-                        }
-                        else{
-
-                            mChatMsgListView.addMsgInfo(chatMsgInfo);
-                        }
-
+                        ChatMsgInfo chatMsgInfo = ChatMsgInfo.createListInfo(content, packet.getAccount(),packet.getHeader());
+                        mChatMsgListView.addMsgInfo(chatMsgInfo);
                     }
                 });
 
             }
 
             @Override
-            public void onGiftMsg(final  IMMsgPacket packet) {
+            public void onNewMsgDanMu(final IMMsgPacket packet, final String content) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ChatMsgInfo chatMsgInfo = ChatMsgInfo.createListInfo(content, packet.getAccount(),packet.getHeader());
+                        mDanmuView.addMsgInfo(chatMsgInfo);
+                    }
+                });
+
+            }
+
+            @Override
+            public void onGiftMsg(final  IMMsgPacket packet,final String content) {
 
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         // format   giftid|repeatid
-                        String content = packet.getContent();
                         String[] arr = content.split("&");
 
                         int giftId = Integer.parseInt(arr[0]);
@@ -212,16 +221,34 @@ public class HostLiveActivity extends BaseActivity {
             }
 
             @Override
-            public void onHeartMsg(final IMMsgPacket packet) {
+            public void onHeartMsg(final IMMsgPacket packet,final String content) {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        String content = packet.getContent();
                         int color = Integer.parseInt(content);
                         heartLayout.addHeart(color);
                     }
                 });
 
+            }
+
+            @Override
+            public void onUserInList(final IMMsgPacket packet) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(AppManager.getUserProfile().getAccount().equals(AppManager.getUserProfile().getAccount()))
+                            return ;
+                        //用户进入直播
+                        UserProfile userProfile = new UserProfile();
+                        userProfile.setHeader(packet.getHeader());
+                        userProfile.setNickName(packet.getNickName());
+                        userProfile.setAccount(packet.getAccount());
+                        userProfile.setLevel(packet.getLevel());
+
+                        mTitleView.addWatcher(userProfile);
+                    }
+                });
             }
 
             @Override

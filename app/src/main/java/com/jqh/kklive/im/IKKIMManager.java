@@ -20,34 +20,37 @@ public class IKKIMManager {
         @Override
         public void onMessage(String msg) {
 
-            IMMsgPacket packet = AppManager.getGson().fromJson(msg,IMMsgPacket.class);
+            IMMsgCmd imMsgCmd = AppManager.getGson().fromJson(msg,IMMsgCmd.class);
             if(mOnIKKLiveMsgListener != null) {
-                switch (packet.getMsgType()){
+                switch (imMsgCmd.getMsgType()){
                     case IMUtils.ILVLIVE_CMD_ENTER:
-                        mOnIKKLiveMsgListener.onUserIn(packet);
+                        mOnIKKLiveMsgListener.onUserIn(imMsgCmd.getPacket());
                         break;
                     case IMUtils.ILVLIVE_CMD_LEAVE:
-                        mOnIKKLiveMsgListener.onUserOut(packet.getAccount());
+                        mOnIKKLiveMsgListener.onUserOut(imMsgCmd.getPacket());
                         break;
                     case IMUtils.CMD_CHAT_MSG_LIST:
+                        mOnIKKLiveMsgListener.onNewMsgList(imMsgCmd.getPacket(),imMsgCmd.getContent());
+                        break;
                     case IMUtils.CMD_CHAT_MSG_DANMU:
-                        mOnIKKLiveMsgListener.onNewMsg(packet);
+                        mOnIKKLiveMsgListener.onNewMsgDanMu(imMsgCmd.getPacket(),imMsgCmd.getContent());
                         break;
                     case IMUtils.CMD_CHAT_GIFT:
-                        mOnIKKLiveMsgListener.onGiftMsg(packet);
+                        mOnIKKLiveMsgListener.onGiftMsg(imMsgCmd.getPacket(),imMsgCmd.getContent());
                         break;
                     case IMUtils.CMD_CHAT_HEART:
-                        mOnIKKLiveMsgListener.onHeartMsg(packet);
+                        mOnIKKLiveMsgListener.onHeartMsg(imMsgCmd.getPacket(),imMsgCmd.getContent());
                         break;
-
+                    case IMUtils.ILVLIVE_CMD_USER_LIST:
+                        mOnIKKLiveMsgListener.onUserInList(imMsgCmd.getPacket());
+                        break;
                 }
 
             }
         }
         @Override
         public void onOpen() {
-            // 发送改用户进入房间
-            sendChatMsgForEnter();
+
 
         }
 
@@ -87,8 +90,9 @@ public class IKKIMManager {
      */
     public void initChat(String roomId, IMMsgPacket packet){
         mPacket = packet ;
+        String encodeStr = IMUtils.encodePackget(packet);
         String wsUrl = IMUtils.WS_URL+"/"+IMUtils.WS_NAME+"/";
-        wsUrl += roomId+"/"+packet.getAccount();
+        wsUrl += roomId+"/"+packet.getAccount()+"/"+encodeStr;
         try {
             mIMClient = new IMClient(new URI(wsUrl), new Draft_6455());
         }catch (Exception e){
@@ -112,9 +116,10 @@ public class IKKIMManager {
      * @param content
      */
     public void sendChatMsgForList(String content){
-        IMMsgPacket packet = newPack();
-        packet.setMsgType(IMUtils.CMD_CHAT_MSG_LIST);
-        sendChatMsg(packet,content);
+        IMMsgCmd cmd = new IMMsgCmd();
+        cmd.setContent(content);
+        cmd.setMsgType(IMUtils.CMD_CHAT_MSG_LIST);
+        sendChatMsg(cmd);
     }
 
     /**
@@ -122,9 +127,10 @@ public class IKKIMManager {
      * @param content
      */
     public void sendChatMsgForGift(String content){
-        IMMsgPacket packet = newPack();
-        packet.setMsgType(IMUtils.CMD_CHAT_GIFT);
-        sendChatMsg(packet,content);
+        IMMsgCmd cmd = new IMMsgCmd();
+        cmd.setContent(content);
+        cmd.setMsgType(IMUtils.CMD_CHAT_GIFT);
+        sendChatMsg(cmd);
     }
 
     /**
@@ -132,9 +138,11 @@ public class IKKIMManager {
      * @param content
      */
     public void sendChatMsgForHeart(String content){
-        IMMsgPacket packet = newPack();
-        packet.setMsgType(IMUtils.CMD_CHAT_HEART);
-        sendChatMsg(packet,content);
+        IMMsgCmd cmd = new IMMsgCmd();
+        cmd.setContent(content);
+        cmd.setMsgType(IMUtils.CMD_CHAT_HEART);
+        sendChatMsg(cmd);
+
     }
 
     /**
@@ -142,35 +150,28 @@ public class IKKIMManager {
      * @param content
      */
     public void sendChatMsgForDanMu(String content){
-        IMMsgPacket packet = newPack();
-        packet.setMsgType(IMUtils.CMD_CHAT_MSG_DANMU);
-        sendChatMsg(packet,content);
+        IMMsgCmd cmd = new IMMsgCmd();
+        cmd.setContent(content);
+        cmd.setMsgType(IMUtils.CMD_CHAT_MSG_DANMU);
+        sendChatMsg(cmd);
     }
 
 
-    /**
-     * 发送聊天
-     * @param
-     */
-    public void sendChatMsgForEnter(){
-        IMMsgPacket packet = newPack();
-        packet.setMsgType(IMUtils.ILVLIVE_CMD_ENTER);
-        sendChatMsg(packet,"");
-    }
+//    /**
+//     * 发送聊天
+//     * @param
+//     */
+//    public void sendChatMsgForEnter(){
+//        IMMsgPacket packet = newPack();
+//        packet.setMsgType(IMUtils.ILVLIVE_CMD_ENTER);
+//        sendChatMsg(packet,"");
+//    }
 
-    /**
-     * 发送聊天
-     * @param
-     */
-    public void sendChatMsgForQuit(){
-        IMMsgPacket packet = newPack();
-        packet.setMsgType(IMUtils.ILVLIVE_CMD_LEAVE);
-        sendChatMsg(packet,"");
-    }
 
-    public void sendChatMsg(IMMsgPacket packet,String content){
-        packet.setContent(content);
-        String json = IMUtils.Obj2Json(packet);
+    public void sendChatMsg(IMMsgCmd cmd){
+        IMMsgPacket packet = newPack();
+        cmd.setPacket(packet);
+        String json = IMUtils.Obj2Json(cmd);
         mIMClient.send(json);
     }
 
@@ -182,13 +183,17 @@ public class IKKIMManager {
 
         void onUserIn(IMMsgPacket packet);
 
-        void onUserOut(String id);
+        void onUserOut(IMMsgPacket packet);
 
-        void onNewMsg(IMMsgPacket packet);
+        void onUserInList(IMMsgPacket packet);
 
-        void onGiftMsg(IMMsgPacket packet);
+        void onNewMsgList(IMMsgPacket packet,String content);
 
-        void onHeartMsg(IMMsgPacket packet);
+        void onNewMsgDanMu(IMMsgPacket packet,String content);
+
+        void onGiftMsg(IMMsgPacket packet,String content);
+
+        void onHeartMsg(IMMsgPacket packet,String content);
 
         void onError(int code , String msg);
 

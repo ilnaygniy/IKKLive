@@ -4,6 +4,7 @@ import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 /**
+ * 存放用户信息
  * Created by jiangqianghua on 18/2/2.
  */
 
@@ -25,13 +26,6 @@ public class IMMsgPacket {
     @SerializedName("level")
     private int level = 0;
 
-    @Expose
-    @SerializedName("content")
-    private String content;
-
-    @Expose
-    @SerializedName("msgType")
-    private int msgType ;
 
 
     public String getAccount() {
@@ -68,19 +62,4 @@ public class IMMsgPacket {
         this.level = level;
     }
 
-    public String getContent() {
-        return content;
-    }
-
-    public void setContent(String content) {
-        this.content = content;
-    }
-
-    public int getMsgType() {
-        return msgType;
-    }
-
-    public void setMsgType(int msgType) {
-        this.msgType = msgType;
-    }
 }
