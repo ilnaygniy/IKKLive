@@ -18,7 +18,7 @@ public class IMUtils {
     public static final int CMD_CHAT_MSG_LIST = 4 ;
     public static final int CMD_CHAT_HEART = 5;
     public static final int ILVLIVE_CMD_USER_LIST = 6;
-    public static String WS_URL = "http://192.168.1.103:8086/live";
+    public static String WS_URL = "http://192.168.1.100:8086/live";
 
     public static String WS_NAME= "imService";
 

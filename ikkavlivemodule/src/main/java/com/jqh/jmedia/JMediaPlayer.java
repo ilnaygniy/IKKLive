@@ -17,14 +17,15 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
+ * 播放
  * Created by jiangqianghua on 2018/1/18.
  * media playe controller class
  */
 public class JMediaPlayer {
 
-    static {
-        System.loadLibrary("ffmpegjni");
-    }
+//    static {
+//        System.loadLibrary("ffmpegjni");
+//    }
 
     private static final String TAG = "JMediaPlayer";
 
@@ -39,7 +40,6 @@ public class JMediaPlayer {
 
     private SurfaceDraw mSurfaceDraw ;
 
-    private JAudioPlayer mAudioPlayer ;
 
     // 定义一些静态常量
     private static final int MEDIA_PREPARED = 1 ;
@@ -47,6 +47,12 @@ public class JMediaPlayer {
     private static final int MEDIA_BUFFERING_UPDATE = 3 ;
     private static final int MEDIA_SEEK_COMPLETE = 4 ;
     private static final int MEDIA_ERROR = 100 ;
+    private static final int MEDIA_ERROR_OPENURL = 101;
+    private static final int MEDIA_ERROR_FINDSTREAM = 102;
+    private static final int MEDIA_ERROR_FIND_VIDEO_DECODE = 103;
+    private static final int MEDIA_ERROR_OPEN_VIDEO_DECODE = 104;
+    private static final int MEDIA_ERROR_FIND_AUDIO_DECODE = 105;
+    private static final int MEDIA_ERROR_OPEN_AUDIO_DECODE = 106;
     private static final int MEDIA_INFO = 200 ;
 
     // 接口对象
@@ -83,10 +89,13 @@ public class JMediaPlayer {
 
 
     // jni方法
+
     /**
      * 初始化底层Native
      */
-    private native void _initNative();
+    private  void _initNative(){
+        JMediaJni.getInstance()._initNative();
+    }
 
     /**
      *
@@ -94,114 +103,115 @@ public class JMediaPlayer {
      * @param keys   http header key
      * @param values http header value
      */
-    private native void _setDataSource(String path,String[] keys,String[] values);
+    private  void _setDataSource(String path,String[] keys,String[] values){
+        JMediaJni.getInstance()._setDataSource(path,keys,values);
+    }
 
     /**
      *  准备播放，同步操作
      */
-    public native void prepare();
+    public  void prepare(){
+        JMediaJni.getInstance().prepare();
+    }
 
     /**
      * 准备播放，异步操作
      */
-    public native void prepareAsync();
+    public  void prepareAsync(){
+        JMediaJni.getInstance().prepareAsync();
+    }
 
     /**
      * 开始播放
      */
-    private native void _start();
+    private  void _start(){
+        JMediaJni.getInstance()._start();
+    }
 
     /**
      * 停止播放
      */
-    private native void _stop();
+    private  void _stop(){
+        JMediaJni.getInstance()._stop();
+    }
 
     /**
      * 暂停播放
      */
-    private native void _pause();
+    private  void _pause(){
+        JMediaJni.getInstance()._pause();
+    }
 
     /**
      * 是否正在播放
      * @return
      */
-    public native boolean isPlaying();
+    public  boolean isPlaying(){
+        return JMediaJni.getInstance().isPlaying();
+    }
+
+    /**
+     * 是否正在播放
+     * @return
+     */
+    public  boolean isPause(){
+        return JMediaJni.getInstance().isPause();
+    }
 
 
     /**
      * 毫秒单位，指定到某一时间播放
      * @param msec
      */
-    public native void seekTo(long msec);
+    public  void seekTo(long msec){
+        JMediaJni.getInstance().seekTo(msec);
+    }
 
     /**
      * 倍速
      * @param speed
      */
-    public native void setPlaybackSpeed(float speed);
+    private  void _setPlaybackSpeed(float speed){
+        JMediaJni.getInstance()._setPlaybackSpeed(speed);
+    }
 
     /**
      * 从jni层获取当前视屏播放的一些参数
      * @return
      */
-    public native long getDuration();
-
-    public native int getVideoWidth();
-
-    public native int getVideoHeight();
-
-    public native int getSampleRate();
-
-    public native boolean is16Bit();
-
-    public native boolean isStereo();
-
-    public native int getDesiredFrames();
-
-
-    // jni回调接口
-
-    /**
-     * jni 回调资源加载准备完成工作,返回加载完的一些参数
-     */
-    public void jni_perpare(){
-        Message m = mEventHandler.obtainMessage(MEDIA_PREPARED);
-        mEventHandler.sendMessage(m);
+    public  long getDuration(){
+        return JMediaJni.getInstance().getDuration();
     }
 
-    public void jni_flush_video_data(byte[] data){
-        if(mSurfaceDraw != null){
-            mSurfaceDraw.flushVideoData(data);
-        }
+    public  int getVideoWidth(){
+        return JMediaJni.getInstance().getVideoWidth();
     }
 
-    public void jni_flush_audio_short_data(short[] data){
-        mAudioPlayer.audioWriteShortBuffer(data);
+    public  int getVideoHeight(){
+        return JMediaJni.getInstance().getVideoHeight();
     }
 
-    public void jni_flush_audio_byte_data(byte[] data){
-        mAudioPlayer.audioWriteByteBuffer(data);
+    public  int getSampleRate(){
+        return JMediaJni.getInstance().getSampleRate();
     }
 
-    public void jni_play_completion(){
-        Message m = mEventHandler.obtainMessage(MEDIA_PLAYBACK_COMPLETE);
-        mEventHandler.sendMessage(m);
+    public  boolean is16Bit(){
+        return JMediaJni.getInstance().is16Bit();
     }
 
-    public void jni_seek_complete(){
-        Message m = mEventHandler.obtainMessage(MEDIA_SEEK_COMPLETE);
-        mEventHandler.sendMessage(m);
+    public  boolean isStereo(){
+        return JMediaJni.getInstance().isStereo();
     }
 
-    public void jni_error(int what,int extra){
-        Message m = mEventHandler.obtainMessage(MEDIA_ERROR);
-        mEventHandler.sendMessage(m);
+    public  int getDesiredFrames(){
+        return JMediaJni.getInstance().getDesiredFrames();
     }
 
-    public void jni_info(int what, int extra){
-        Message m = mEventHandler.obtainMessage(MEDIA_INFO);
-        mEventHandler.sendMessage(m);
+    private  void _release(){
+        JMediaJni.getInstance()._release();
     }
+
+
 
     // 接口回调
     public interface OnPreparedListener{
@@ -226,7 +236,7 @@ public class JMediaPlayer {
          * @param mp  0 到 100
          * @param percent
          */
-        void onBufferingUpdate(JMediaPlayer mp,int percent);
+        void onBufferingUpdate(JMediaPlayer mp, int percent);
     }
 
     public  interface  OnSeekCompleteListener{
@@ -246,7 +256,7 @@ public class JMediaPlayer {
          * @param width
          * @param height
          */
-        void onVideoSizeChanged(JMediaPlayer mp , int width , int height);
+        void onVideoSizeChanged(JMediaPlayer mp, int width, int height);
     }
 
     public interface OnErrorListener{
@@ -257,7 +267,7 @@ public class JMediaPlayer {
          * @param extra
          * @return
          */
-        boolean onError(JMediaPlayer mp, int what,int extra);
+        boolean onError(JMediaPlayer mp, int what, int extra);
     }
 
 
@@ -270,7 +280,7 @@ public class JMediaPlayer {
          * @param extra
          * @return
          */
-        boolean onInfo(JMediaPlayer mp,int what, int extra);
+        boolean onInfo(JMediaPlayer mp, int what, int extra);
     }
 
     //  java层函数
@@ -286,6 +296,28 @@ public class JMediaPlayer {
             mEventHandler = null ;
 
         _initNative();
+
+        JMediaJni.getInstance().setOnJMediaEventListener(new JMediaJni.OnJMediaPlayEventListener() {
+            @Override
+            public void postEventFromNative(int what, int arg1, int arg2, Object obj) {
+                if(mEventHandler != null){
+                    Message m = mEventHandler.obtainMessage(what,arg1,arg2,obj);
+                    mEventHandler.sendMessage(m);
+                }
+            }
+
+            @Override
+            public void jni_flush_video_data(byte[] data) {
+                if(mSurfaceDraw != null){
+                    mSurfaceDraw.flushVideoData(data);
+                }
+            }
+
+            @Override
+            public void jni_flush_audio_byte_data(byte[] data) {
+                JAudioPlayer.audioWriteByteBuffer(data);
+            }
+        });
 
     }
     /**
@@ -381,7 +413,11 @@ public class JMediaPlayer {
     }
 
     public void start(){
-        _start();
+        try {
+            _start();
+        }catch (NullPointerException e){
+            e.printStackTrace();
+        }
     }
 
     public void stop(){
@@ -392,6 +428,16 @@ public class JMediaPlayer {
         _pause();
     }
 
+    public void release(){
+
+        _release();
+    }
+
+    public void setPlaybackSpeed(float speed){
+        _setPlaybackSpeed(speed);
+        if(isPlaying() || isPause())
+            JAudioPlayer.audioInit(getSampleRate(),is16Bit(),isStereo(),getDesiredFrames());
+    }
 
     private class EventHandler extends Handler{
 
@@ -403,7 +449,7 @@ public class JMediaPlayer {
             mMediaPlayer = mp ;
         }
         public void release(){
-            mMediaPlayer = null ;
+
         }
 
         @Override
@@ -421,7 +467,7 @@ public class JMediaPlayer {
                         mSurfaceDraw.width = getVideoWidth();
                         mSurfaceDraw.height = getVideoHeight();
 
-                        mAudioPlayer.audioInit(getSampleRate(),is16Bit(),isStereo(),getDesiredFrames());
+                        JAudioPlayer.audioInit(getSampleRate(),is16Bit(),isStereo(),getDesiredFrames());
                         mOnPreparedListener.onPrepared(mMediaPlayer);
                     }
                     break;
@@ -439,6 +485,17 @@ public class JMediaPlayer {
                     if(mOnBufferingUpdateListener != null){
                         //mOnBufferingUpdateListener.onBufferingUpdate(mMediaPlayer);
                     }
+                    break;
+                case MEDIA_ERROR:
+                    if(mOnErrorListener != null){
+                        mOnErrorListener.onError(mMediaPlayer,msg.arg1,msg.arg2);
+                    }
+                    break;
+                case MEDIA_INFO:
+                    if(mOnInfoListener != null){
+
+                    }
+                    break;
             }
         }
     }

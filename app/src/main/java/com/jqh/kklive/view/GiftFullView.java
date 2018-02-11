@@ -7,7 +7,6 @@ import android.widget.RelativeLayout;
 
 import com.jqh.kklive.model.GiftInfo;
 import com.jqh.kklive.model.UserProfile;
-import com.tencent.TIMUserProfile;
 
 import java.util.LinkedList;
 import java.util.List;

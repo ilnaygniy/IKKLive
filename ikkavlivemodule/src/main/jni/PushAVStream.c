@@ -23,7 +23,7 @@
 
 #define OPEN_LOG
 
-#define LOG_TAG    "MediaPushCameraJni"
+#define LOG_TAG    "PushAVStream"
 #undef LOG
 #ifdef  OPEN_LOG
 #define LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG,LOG_TAG,__VA_ARGS__)
@@ -77,9 +77,27 @@ typedef struct CommonStatus
 	int64_t start_time;
 } CommonStatus;
 
+/****************音视频队列相关*****************/
+// 读取数据包的队列
+typedef struct PacketQueue
+{
+    AVPacketList *first_ptk ; // 队头
+    AVPacketList *last_pkt ;  //队尾
+    int nb_packets ;          // 包的个数
+    int size ;                // 占用空间的字节数   
+    pthread_mutex_t mutex ;
+}PacketQueue ;
 
-
-
+   PacketQueue avq;
+// 队列相关
+/**
+void packet_queue_init1(PacketQueue *q); // 初始化队列
+int packet_queue_put1(PacketQueue *q, AVPacket *pkt); // 加入队列
+int packet_queue_get1(PacketQueue *q,AVPacket *pkt, int block);  // 获取队列数据，block 是否堵塞
+void packet_queue_destory1(PacketQueue *q);
+void packet_queue_clean1(PacketQueue *q);
+void *wirte_thread(void *arg);
+**/
 VideoStatus *videostatus = NULL;
 AudioStatus *audiostatus = NULL;
 CommonStatus *commonStatus = NULL;
@@ -127,6 +145,7 @@ int initVideoParams()
 	videostatus->uv_length = commonStatus->width*commonStatus->height/4;
 
 	videostatus->pCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
+	//videostatus->pCodec = avcodec_find_encoder_by_name("h264_nvenc");
 	if(!videostatus->pCodec)
 	{
 		LOGE("can not find encoder h264");
@@ -170,10 +189,16 @@ int initVideoParams()
          * ultrafast,superfast, veryfast, faster, fast, medium
          * slow, slower, veryslow, placebo.　这是x264编码速度的选项
        */
-		av_dict_set(&param, "preset", "superfast", 0);
+        LOGD("av_dict_set ----");
+		av_dict_set(&param, "preset", "ultrafast", 0);//ultrafast superfast
         av_dict_set(&param, "tune", "zerolatency", 0);
-        //av_opt_set(videostatus->pCodecCtx->priv_data, "tune", "zerolatency", 0);
+		av_dict_set(&param, "crf", "40", 0); // 0- 50 越高画质越低
+
         //av_opt_set(videostatus->pCodecCtx->priv_data, "preset", "superfast", 0);
+         //参数参考https://segmentfault.com/a/1190000002502526
+        //av_opt_set(videostatus->pCodecCtx->priv_data, "crf", "40", 0);
+        //av_opt_set(videostatus->pCodecCtx->priv_data, "preset", "ultrafast", 0);
+        //av_opt_set(videostatus->pCodecCtx->priv_data, "tune", "zerolatency", 0);
 	}
 
 	int r = 0 ;
@@ -259,7 +284,7 @@ int initAudioParams()
 }
 
 // 初始化参数
-JNIEXPORT int Java_com_jqh_jni_nativejni_MediaPlayerJni_publicStreamInit(JNIEnv *env,jobject jobject,
+JNIEXPORT int Java_com_jqh_jmedia_JMediaJni_publicStreamInit(JNIEnv *env,jobject jobject,
                                                             jstring url_,jint w , jint h)
 {
 	const char *out_path = (*env)->GetStringUTFChars(env,url_,0);
@@ -274,6 +299,7 @@ JNIEXPORT int Java_com_jqh_jni_nativejni_MediaPlayerJni_publicStreamInit(JNIEnv 
 	commonStatus->width = w ; 
 	commonStatus->height = h ;
 
+	//packet_queue_init1(&avq);
 
 	//  初始参数初始化
 	avformat_alloc_output_context2(&commonStatus->ofmt_ctx,NULL,"flv",out_path);
@@ -297,14 +323,32 @@ JNIEXPORT int Java_com_jqh_jni_nativejni_MediaPlayerJni_publicStreamInit(JNIEnv 
 	commonStatus->play_status = PLAY_STATUS_PLAY;
 
 	//commonStatus->start_time = av_gettime();
+
+	// pthread_t tid1 ;
+ //    int result1 = pthread_create(&tid1,NULL,wirte_thread,NULL);
+ //    pthread_detach(tid1);
+
 	return 0 ;
 }
 
+// 返回当前时间，double类型
+double nowTime1()
+{
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+
+    unsigned long long ullNow = tv.tv_sec*1000000 + tv.tv_usec;//av_gettime();
+    double dNow = (double)ullNow / 1000000;
+    return  dNow ;
+}
+
 // 开始刷视频
-JNIEXPORT int Java_com_jqh_jni_nativejni_MediaPlayerJni_flushStreamData(JNIEnv *env,jobject jobject,
+JNIEXPORT int Java_com_jqh_jmedia_JMediaJni_flushStreamData(JNIEnv *env,jobject jobject,
                                                             jbyteArray buffer_,jint ji)
 {	
+
 	int ret = 0 ;
+
 	LOGD("count3 %d %d",commonStatus->a_count,commonStatus->v_count);
 	jbyte *in = (*env)->GetByteArrayElements(env,buffer_,NULL);
 	AVFrame *pFrame = NULL;
@@ -359,19 +403,23 @@ JNIEXPORT int Java_com_jqh_jni_nativejni_MediaPlayerJni_flushStreamData(JNIEnv *
 	commonStatus->enc_pkt.size = 0 ;
 	av_init_packet(&commonStatus->enc_pkt);
 
-	LOGD("test1");
+	//LOGD("test1");
 	int frameFinished = 0 ;
 	// 先计算时间戳
 
 	// ---- end ---
+	double time1 = nowTime1();
 	int size = avcodec_encode_video2(pCodecCtx,&commonStatus->enc_pkt,pFrame,&frameFinished);
-	LOGD("test2");
+	double time2 = nowTime1();
+	LOGD("push --- time1=%f time2=%f  diff = %f",time1,time2,time2-time1);
+	//LOGD("test2");
 	//av_frame_free(&pFrame);
 	if(size < 0){
 		LOGE("avcodec_encode_video2 error");
 		return -5;
 	}
 	LOGD("test3");
+	LOGD("avcodec_encode_video2 result=%d",frameFinished);
 	//video stream index=0  | audio stream index=1
 	if(frameFinished == 1)
 	{
@@ -446,6 +494,7 @@ JNIEXPORT int Java_com_jqh_jni_nativejni_MediaPlayerJni_flushStreamData(JNIEnv *
 
 		//		LOGD("index:%lld",calc_duration);
 
+		//packet_queue_put1(&avq,&commonStatus->enc_pkt);
 		ret = av_interleaved_write_frame(commonStatus->ofmt_ctx, &commonStatus->enc_pkt);
 		if(ret != 0)
 		{
@@ -459,7 +508,7 @@ JNIEXPORT int Java_com_jqh_jni_nativejni_MediaPlayerJni_flushStreamData(JNIEnv *
 }
 
 //停止推流
-JNIEXPORT int Java_com_jqh_jni_nativejni_MediaPlayerJni_stopStream(JNIEnv *env,jobject jobject)
+JNIEXPORT int Java_com_jqh_jmedia_JMediaJni_stopStream(JNIEnv *env,jobject jobject)
 { 
 	commonStatus->play_status = PLAY_STATUS_STOP ;
     av_write_trailer(commonStatus->ofmt_ctx);
@@ -477,3 +526,157 @@ JNIEXPORT int Java_com_jqh_jni_nativejni_MediaPlayerJni_stopStream(JNIEnv *env,j
     return 0;
 }
 
+// 新增队列 废弃
+void *wirte_thread(void *arg)
+{
+	LOGD("start wirte thread 1 --- ");
+	sleep(10);
+	LOGD("start wirte thread 2 --- ");
+	AVPacket pkt1 , *packet = &pkt1 ;
+	int ret ;
+	int i = 0 ;
+	while(1){
+		//packet_queue_get1(&avq,packet,1);
+		LOGD("start wirte thread  --- %d",i);
+		i++;
+		if(packet == NULL)
+		{
+			usleep(0.01*1000*1000);
+		}
+		ret = av_interleaved_write_frame(commonStatus->ofmt_ctx, packet);
+		if(ret != 0)
+		{
+			LOGE("av_interleaved_write_frame failed");
+		}
+	}
+}
+/**
+// 增加队列
+// 初始化队列
+void packet_queue_init1(PacketQueue *q) 
+{
+    memset(q,0,sizeof(PacketQueue));
+    q->first_ptk = NULL; 
+    q->last_pkt = NULL;
+    packet_queue_clean(q);
+    pthread_mutex_init(&q->mutex , NULL) ; // 初始化锁
+}
+
+// 加入队列
+int packet_queue_put1(PacketQueue *q, AVPacket *pkt) 
+{
+
+    AVPacketList *pkt1 = (AVPacketList *) av_malloc(sizeof(AVPacketList));
+    if(!pkt1)
+    {
+        return -1 ;
+    }
+    if(q == NULL)
+        return -1 ;
+    //对互斥锁上锁
+    if(pthread_mutex_lock(&q->mutex) != 0)
+    {
+        printf("packet_queue_put Thread lock failed! \n") ;
+        return -1 ;
+    }
+    pkt1->pkt = *pkt ;
+    pkt1->next = NULL; 
+
+    if(q == NULL)
+        return -1 ;
+    if(!q->last_pkt)
+    {
+        q->first_ptk = pkt1 ;
+    }
+    else
+    {
+        q->last_pkt->next = pkt1 ;
+    }
+
+    q->last_pkt = pkt1 ;
+    q->nb_packets++;
+    q->size += pkt1->pkt.size ;
+    //解锁
+    pthread_mutex_unlock(&q->mutex) ;
+}
+
+// 获取队列数据，block 是否堵塞
+int packet_queue_get1(PacketQueue *q,AVPacket *pkt, int block)  
+{
+    AVPacketList *pkt1 = NULL;
+    int ret = 0 ; 
+
+    if(q == NULL)
+        return -1 ;
+    //对互斥锁上锁
+    if(pthread_mutex_lock(&q->mutex) != 0)
+    {
+        printf("packet_queue_get Thread lock failed! \n") ;
+        return -1 ;
+    }
+
+    if(q == NULL)
+        return -1 ;
+    for(;;)
+    {
+        pkt1 = q->first_ptk ;
+        if(pkt1)
+        {
+            q->first_ptk = pkt1->next;
+            if(!q->first_ptk)
+            {
+                q->last_pkt = NULL;
+            }
+            q->nb_packets-- ; 
+            q->size -= pkt1->pkt.size ;
+            *pkt = pkt1->pkt;
+            av_free(pkt1);
+            ret = 1 ; 
+            LOGD("[packet_queue_get] video packgets = %d",q->nb_packets);
+            break;
+        }
+        else if(!block)
+        {
+            ret = 0 ;
+            LOGD("[packet_queue_get] !block");
+            break;
+        }
+        else
+        {
+            ret = -1 ;
+            break;
+        }
+    }
+
+     //解锁
+    pthread_mutex_unlock(&q->mutex);
+    return ret ;
+}
+
+void packet_queue_destory1(PacketQueue *q)
+{
+    if(q != NULL)
+        pthread_mutex_destroy(&q->mutex) ;
+}
+
+void packet_queue_clean1(PacketQueue *q)
+{
+    if(q == NULL)
+        return ;
+    //对互斥锁上锁
+    if(pthread_mutex_lock(&q->mutex) != 0)
+    {
+        printf("packet_queue_clean Thread lock failed! \n") ;
+        return  ;
+    }
+
+    //清空数据
+    q->first_ptk = NULL; 
+    q->last_pkt = NULL;
+    q->size = 0 ; 
+    q->nb_packets = 0 ;
+    //解锁
+    pthread_mutex_unlock(&q->mutex) ;
+
+}
+**/

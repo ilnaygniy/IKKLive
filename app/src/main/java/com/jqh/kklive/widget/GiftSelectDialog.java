@@ -23,8 +23,6 @@ import com.jqh.kklive.im.IMMsgPacket;
 import com.jqh.kklive.model.GiftInfo;
 import com.jqh.kklive.net.IKKFriendshipManager;
 import com.jqh.kklive.view.GiftGridView;
-import com.tencent.livesdk.ILVCustomCmd;
-import com.tencent.livesdk.ILVText;
 
 import java.util.ArrayList;
 import java.util.List;

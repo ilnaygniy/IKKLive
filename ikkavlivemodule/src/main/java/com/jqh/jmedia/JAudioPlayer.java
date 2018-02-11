@@ -4,7 +4,6 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.util.Log;
 
-
 /**
  * Created by user on 2017/11/30.
  */
@@ -21,6 +20,7 @@ public class JAudioPlayer{
             // Let the user pick a larger buffer if they really want -- but ye
             // gods they probably shouldn't, the minimums are horrifyingly high
             // latency already
+            int size = AudioTrack.getMinBufferSize(sampleRate, channelConfig, audioFormat) ;
             desiredFrames = Math.max(desiredFrames, (AudioTrack.getMinBufferSize(sampleRate, channelConfig, audioFormat) + frameSize - 1) / frameSize);
             mAudioTrack = null ;
             if (mAudioTrack == null) {

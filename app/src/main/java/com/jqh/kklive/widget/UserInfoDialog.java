@@ -10,7 +10,6 @@ import android.widget.TextView;
 import com.jqh.kklive.R;
 import com.jqh.kklive.model.UserProfile;
 import com.jqh.kklive.utils.ImgUtils;
-import com.tencent.TIMUserProfile;
 
 import java.util.Map;
 

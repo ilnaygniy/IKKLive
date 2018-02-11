@@ -2,6 +2,7 @@ package com.jqh.ikkavlivemodule;
 
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
+import android.os.Build;
 import android.view.SurfaceHolder;
 
 import com.jqh.ikkavlivemodule.utils.DataUtils;
@@ -72,7 +73,7 @@ public class CameraManager {
                     Camera.Parameters parameters = camera.getParameters();//获取各项参数
                     Camera.Size previewSize = findFitPreResolution(parameters);
                     parameters.setPreviewSize(previewSize.width, previewSize.height);// 设置预览大小
-
+                    IKKLiveManager.getInstance().setVideoSize(previewSize.width,previewSize.height);
                     parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
                     parameters.setPictureFormat(PixelFormat.JPEG);//设置图片格式
                     //不能与setPreviewSize一起使用，否则setParamters会报错
@@ -88,12 +89,58 @@ public class CameraManager {
                     parameters.setPictureSize(pictureSize.width, pictureSize.height);// 设置保存的图片尺寸
                     camera.setParameters(parameters);
                     camera.startPreview();
+
+                    // 实现自动对焦
+                    camera.autoFocus(new Camera.AutoFocusCallback() {
+                        @Override
+                        public void onAutoFocus(boolean success, Camera camera) {
+                            if (success) {
+                                camera.cancelAutoFocus();// 只有加上了这一句，才会自动对焦
+                                doAutoFocus();
+                            }
+                        }
+                    });
+
+                    camera.setPreviewCallback(new Camera.PreviewCallback() {
+                        @Override
+                        public void onPreviewFrame(byte[] data, Camera camera) {
+                            IKKLiveManager.getInstance().flushVideoData(data);
+                        }
+                    });
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
 
+        // 自动对焦
+        // handle button auto focus
+        private void doAutoFocus() {
+            if(cameraPosition != Camera.CameraInfo.CAMERA_FACING_BACK)
+                return ;
+            final Camera.Parameters parameters1 = camera.getParameters();
+            parameters1.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+            camera.setParameters(parameters1);
+            camera.autoFocus(new Camera.AutoFocusCallback() {
+                @Override
+                public void onAutoFocus(boolean success, Camera camera) {
+                    if (success) {
+                        camera.cancelAutoFocus();// 只有加上了这一句，才会自动对焦。
+                        if (!Build.MODEL.equals("KORIDY H30")) {
+                            Camera.Parameters parameters = camera.getParameters();
+                            parameters = camera.getParameters();
+                            parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);// 1连续对焦
+                            camera.setParameters(parameters);
+                        }else{
+                            Camera.Parameters parameters = camera.getParameters();
+                            parameters = camera.getParameters();
+                            parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+                            camera.setParameters(parameters);
+                        }
+                    }
+                }
+            });
+        }
 
         /**
          * 摄像头切换
@@ -154,6 +201,8 @@ public class CameraManager {
                 camera.release();//释放相机
                 camera = null;
             }
+
+            IKKLiveManager.getInstance().stopLive();
         }
 
     /**

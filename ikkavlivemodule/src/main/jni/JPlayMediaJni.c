@@ -48,6 +48,21 @@
 #define PLAY_STATUS_PAUSE 3
 #define PLAY_STATUS_PREPARE 4
 
+// 返回给java的key
+#define MEDIA_PREPARED 1
+#define MEDIA_PLAYBACK_COMPLETE 2
+#define MEDIA_BUFFERING_UPDATE 3
+#define MEDIA_SEEK_COMPLETE 4
+#define MEDIA_ERROR 100
+#define MEDIA_ERROR_OPENURL 101
+#define MEDIA_ERROR_FINDSTREAM 102
+#define MEDIA_ERROR_FIND_VIDEO_DECODE 103
+#define MEDIA_ERROR_OPEN_VIDEO_DECODE 104
+#define MEDIA_ERROR_FIND_AUDIO_DECODE 105
+#define MEDIA_ERROR_OPEN_AUDIO_DECODE 106
+#define MEDIA_INFO 200
+#define DTS_SAMPLE_RATE 22050 //16000
+
 /****************回调函数相关*****************/
 static jobject jPlayMediaJniObj;
 
@@ -59,6 +74,8 @@ static jmethodID jni_play_completion ;
 static jmethodID jni_seek_complete ;
 static jmethodID jni_error;
 static jmethodID jni_info ;
+
+static jmethodID jni_postEventFromNative;
 
 static JavaVM *g_jvm = NULL;
 
@@ -87,7 +104,7 @@ typedef struct PlayStatus
     bool isResum  ;
     int64_t seekpos  ; 
     // 倍速控制
-    double speed  ;
+    float speed  ;
     // 音频相关
     double audio_clock ;
 
@@ -109,10 +126,15 @@ typedef struct PlayStatus
     int64_t duration ;
 
     int sample_rate ;
+    int sample_rate_speed ;
     int isStereo ; 
     int is16Bit;
     int desiredFrames ;
+    int channels ;
     int play_status ;
+    double last_show_time ;
+    bool isVRunning;
+    bool isARunning ;
 
 } PlayStatus;
 
@@ -122,10 +144,10 @@ PacketQueue *packetQueue ;
 PlayStatus *playStatus ;
 AVFFmpegCtx *avFFmpegCtx ;
 
-
 /****************函数声明*****************/
 void init_ffmpeg();
 void init_params();
+void init_alloc();
 void myffmpeglog2(void* p, int v, const char* str, va_list lis);
 int hasVideo();
 int hasAudio();
@@ -142,56 +164,64 @@ int packet_queue_put(PacketQueue *q, AVPacket *pkt); // 加入队列
 int packet_queue_get(PacketQueue *q,AVPacket *pkt, int block);  // 获取队列数据，block 是否堵塞
 void packet_queue_destory(PacketQueue *q);
 void packet_queue_clean(PacketQueue *q);
+void postEventFromNative(jint what,jint arg1,jint arg2,jobject obj);
 
 // 线程相关
 void *prepareAsync(void *arg);
 void *recv_thread(void *arg);
 void *video_thread(void *arg);
 void *audio_thread(void *arg);
+
 /****************java调用的函数*****************/
 
 // 初始化调用
-void Java_com_jqh_jmedia_JMediaPlayer__1initNative(JNIEnv *env,jobject jobj)
+void Java_com_jqh_jmedia_JMediaJni__1initNative(JNIEnv *env,jobject jobj)
 {
     init_ffmpeg();
+    init_alloc();
+    init_params();
 
+    playStatus->isARunning = false;
+    playStatus->isVRunning = false;
 //保存全局JVM以便在子线程中使用
     (*env)->GetJavaVM(env,&g_jvm);
     LOGD("init1 - %p %p" ,g_jvm,jobj);
-    //com/jqh/jmedia/JMediaPlayer
-    jclass cls = (*env)->FindClass(env,"com/jqh/jmedia/JMediaPlayer");
+    //com/jqh/jmedia/JMediaJni
+    jclass cls = (*env)->FindClass(env,"com/jqh/jmedia/JMediaJni");
     if(cls == NULL)
     {
-        LOGD("Can not find cls by  com/jqh/jmedia/JMediaPlayer" );
+        LOGD("Can not find cls by  com/jqh/jmedia/JMediaJni" );
     }
-    LOGD("init2 %p" ,cls);
     jPlayMediaJniObj = (jobject)((*env)->NewGlobalRef(env, jobj));
-    LOGD("init3 %p" ,jPlayMediaJniObj);
 
-    jni_perpare = (*env)->GetMethodID(env, cls,
-                                "jni_perpare", "()V");
+    // jni_perpare = (*env)->GetMethodID(env, cls,
+    //                             "jni_perpare", "()V");
     jni_flush_video_data = (*env)->GetMethodID(env, cls,
                                 "jni_flush_video_data", "([B)V");
     jni_flush_audio_byte_data = (*env)->GetMethodID(env, cls,
                                 "jni_flush_audio_byte_data", "([B)V");
+    jni_postEventFromNative = (*env)->GetMethodID(env,cls,
+                                "postEventFromNative","(IIILjava/lang/Object;)V");
+
 }
 
-// 设置源数据
-void Java_com_jqh_jmedia_JMediaPlayer__1setDataSource(JNIEnv *env, jobject jobject,jstring url,jobjectArray keys,jobjectArray values)
-{
-    init_params();
 
+// 设置源数据
+void Java_com_jqh_jmedia_JMediaJni__1setDataSource(JNIEnv *env, jobject jobject,jstring url,jobjectArray keys,jobjectArray values)
+{
     playStatus->url = (*env)->GetStringUTFChars(env,url,NULL);
 
     (*env)->DeleteLocalRef(env,url);
 }
 
 // 准备播放，异步操作，准备完成回调给java上层
-void Java_com_jqh_jmedia_JMediaPlayer_prepareAsync(JNIEnv *env, jobject jobject)
+void Java_com_jqh_jmedia_JMediaJni_prepareAsync(JNIEnv *env, jobject jobject)
 {
+
     // 开辟线程执行
     pthread_t tid ;
     // 创建一个接受线程
+    LOGD("media opetator -- prepareAsync");
     int result = pthread_create(&tid,NULL,prepareAsync,NULL);
     if(result != 0)
     {
@@ -200,12 +230,12 @@ void Java_com_jqh_jmedia_JMediaPlayer_prepareAsync(JNIEnv *env, jobject jobject)
     pthread_detach(tid);
 }
 
-void Java_com_jqh_jmedia_JMediaPlayer__1start(JNIEnv *env, jobject jobject)
+void Java_com_jqh_jmedia_JMediaJni__1start(JNIEnv *env, jobject jobject)
 {
-    LOGD("start video");
+    LOGD("media opetator -- begin start");
     if(playStatus->play_status == PLAY_STATUS_PREPARE)
     {
-        LOGD("start video start");
+        LOGD("media opetator -- start");
         // 开启线程刷数据
         pthread_t tid ;
         int result = pthread_create(&tid,NULL,recv_thread,NULL);
@@ -225,71 +255,107 @@ void Java_com_jqh_jmedia_JMediaPlayer__1start(JNIEnv *env, jobject jobject)
         }
         playStatus->play_status = PLAY_STATUS_START ;
     }else if(playStatus->play_status == PLAY_STATUS_PAUSE){
-        LOGD("start video go on");
+        LOGD("media opetator -- go on");
         playStatus->isResum = true ;
         playStatus->play_status = PLAY_STATUS_START ;
     }
 }
 
-void Java_com_jqh_jmedia_JMediaPlayer__1stop(JNIEnv *env, jobject jobject)
+void Java_com_jqh_jmedia_JMediaJni__1stop(JNIEnv *env, jobject jobject)
 {
+    LOGD("media opetator -- stop");
     playStatus->play_status = PLAY_STATUS_STOP;
     if(playStatus)
         playStatus->isPlay = false; 
 }
 
-void Java_com_jqh_jmedia_JMediaPlayer__1pause(JNIEnv *env, jobject jobject)
+void Java_com_jqh_jmedia_JMediaJni__1pause(JNIEnv *env, jobject jobject)
 {
+    LOGD("media opetator -- pause");
     playStatus->play_status = PLAY_STATUS_PAUSE;
     if(playStatus)
         playStatus->isResum = false ;
 }
 
-void Java_com_jqh_jmedia_JMediaPlayer_seekTo(JNIEnv *env, jobject jobject,jlong seek)
+void Java_com_jqh_jmedia_JMediaJni_seekTo(JNIEnv *env, jobject jobject,jlong seek)
 {
     if(playStatus)
         playStatus->seekpos = seek ;
 }
 
-void Java_com_jqh_jmedia_JMediaPlayer_setPlaybackSpeed(JNIEnv *env, jobject jobject,jdouble jspeed)
+void Java_com_jqh_jmedia_JMediaJni__1release(JNIEnv *env, jobject jobject)
 {
+    LOGD("media opetator -- release");
+    playStatus->play_status = PLAY_STATUS_STOP;
     if(playStatus)
-        playStatus->speed = jspeed ;
+        playStatus->isPlay = false; 
+    // free 释放内存
 }
 
-jint Java_com_jqh_jmedia_JMediaPlayer_getVideoWidth(JNIEnv *env, jobject jobject)
+void Java_com_jqh_jmedia_JMediaJni__1setPlaybackSpeed(JNIEnv *env, jobject jobject,jfloat jspeed)
+{
+    if(playStatus)
+    {
+        playStatus->speed = jspeed ;
+    
+        if(playStatus->play_status == PLAY_STATUS_START || playStatus->play_status == PLAY_STATUS_PAUSE){
+            int audioSampleRate = (int)(playStatus->sample_rate * playStatus->speed) ;
+            //LOGD("InitAudio --- %d %d %lld channels=%d ",acodeCtx->sample_rate, audioSampleRate,acodeCtx->channel_layout,acodeCtx->channels);
+            // 参数为采样率和声道数  
+            playStatus->tempoStream_ = sonicCreateStream(audioSampleRate,playStatus->channels);
+            // 设置速率
+            sonicSetSpeed(playStatus->tempoStream_, playStatus->speed);  
+            sonicSetPitch(playStatus->tempoStream_, 1.0);
+            sonicSetRate(playStatus->tempoStream_, 1.0/playStatus->speed);
+            playStatus->sample_rate_speed = audioSampleRate ;   
+        }
+    }
+}
+
+jint Java_com_jqh_jmedia_JMediaJni_getVideoWidth(JNIEnv *env, jobject jobject)
 {
     return playStatus->videoWdith;
 }
 
-jint Java_com_jqh_jmedia_JMediaPlayer_getVideoHeight(JNIEnv *env, jobject jobject)
+jint Java_com_jqh_jmedia_JMediaJni_getVideoHeight(JNIEnv *env, jobject jobject)
 {
     return playStatus->videoHeight;
 }
 
-jlong Java_com_jqh_jmedia_JMediaPlayer_getDuration(JNIEnv *env, jobject jobject)
+jlong Java_com_jqh_jmedia_JMediaJni_getDuration(JNIEnv *env, jobject jobject)
 {
     return playStatus->duration;
 }
 
-jint Java_com_jqh_jmedia_JMediaPlayer_getSampleRate(JNIEnv *env, jobject jobject)
+jint Java_com_jqh_jmedia_JMediaJni_getSampleRate(JNIEnv *env, jobject jobject)
 {
-    return playStatus->sample_rate;
+    return playStatus->sample_rate_speed;
 }
 
-jint Java_com_jqh_jmedia_JMediaPlayer_getDesiredFrames(JNIEnv *env, jobject jobject)
+jint Java_com_jqh_jmedia_JMediaJni_getDesiredFrames(JNIEnv *env, jobject jobject)
 {
     return playStatus->desiredFrames;
 }
 
-jboolean Java_com_jqh_jmedia_JMediaPlayer_is16Bit(JNIEnv *env, jobject jobject)
+jboolean Java_com_jqh_jmedia_JMediaJni_is16Bit(JNIEnv *env, jobject jobject)
 {
     return playStatus->is16Bit;
 }
 
-jboolean Java_com_jqh_jmedia_JMediaPlayer_isStereo(JNIEnv *env, jobject jobject)
+jboolean Java_com_jqh_jmedia_JMediaJni_isStereo(JNIEnv *env, jobject jobject)
 {
     return playStatus->isStereo;
+}
+
+jboolean Java_com_jqh_jmedia_JMediaJni_isPlaying(JNIEnv *env, jobject jobject)
+{
+    return playStatus->play_status == PLAY_STATUS_START || playStatus->play_status == PLAY_STATUS_PREPARE;
+}
+
+
+jboolean Java_com_jqh_jmedia_JMediaJni_isPause(JNIEnv *env, jobject jobject)
+{
+    return playStatus->play_status == PLAY_STATUS_PAUSE;
 }
 
 /**
@@ -303,20 +369,25 @@ void init_ffmpeg()
     avformat_network_init(); 
 }
 
+void init_alloc()
+{
+    packetQueue = malloc(sizeof(PacketQueue));
+    playStatus = malloc(sizeof(PlayStatus));
+    avFFmpegCtx = malloc(sizeof(AVFFmpegCtx));
+}
 /**
  *  初始化音视频相关参数
  */
 void init_params()
 {
-    packetQueue = malloc(sizeof(PacketQueue));
-    playStatus = malloc(sizeof(PlayStatus));
-    avFFmpegCtx = malloc(sizeof(AVFFmpegCtx));
 
     packet_queue_init(&playStatus->videoq);
     packet_queue_init(&playStatus->audioq);
 
     playStatus->isPlay = false;
     playStatus->isReadStop = false;
+    playStatus->isARunning = false; 
+    playStatus->isVRunning = false ;
     playStatus->isResum = false;
     playStatus->seekpos = -1 ; 
     playStatus->speed = 1.0;
@@ -332,11 +403,13 @@ void init_params()
     playStatus->duration = 0 ;
 
     playStatus->sample_rate = 0 ;
+    playStatus->sample_rate_speed = 0 ;
     playStatus->isStereo = 0 ; 
     playStatus->is16Bit = 0;
     playStatus->desiredFrames = 0;
+    playStatus->channels = 1 ;
     playStatus->play_status = PLAY_STATUS_STOP;
-
+    playStatus->last_show_time = 0.0 ;
     avFFmpegCtx->pFormatCtx = NULL;
 }
 
@@ -376,7 +449,8 @@ int packet_queue_put(PacketQueue *q, AVPacket *pkt)
     {
         return -1 ;
     }
-
+    if(q == NULL)
+        return -1 ;
     //对互斥锁上锁
     if(pthread_mutex_lock(&q->mutex) != 0)
     {
@@ -386,6 +460,8 @@ int packet_queue_put(PacketQueue *q, AVPacket *pkt)
     pkt1->pkt = *pkt ;
     pkt1->next = NULL; 
 
+    if(q == NULL)
+        return -1 ;
     if(!q->last_pkt)
     {
         q->first_ptk = pkt1 ;
@@ -409,13 +485,17 @@ int packet_queue_get(PacketQueue *q,AVPacket *pkt, int block)
     AVPacketList *pkt1 = NULL;
     int ret = 0 ; 
 
+    if(q == NULL)
+        return -1 ;
     //对互斥锁上锁
-    // if(pthread_mutex_lock(&q->mutex) != 0)
-    // {
-    //     printf("packet_queue_get Thread lock failed! \n") ;
-    //     return -1 ;
-    // }
+    if(pthread_mutex_lock(&q->mutex) != 0)
+    {
+        printf("packet_queue_get Thread lock failed! \n") ;
+        return -1 ;
+    }
 
+    if(q == NULL)
+        return -1 ;
     for(;;)
     {
         pkt1 = q->first_ptk ;
@@ -448,7 +528,7 @@ int packet_queue_get(PacketQueue *q,AVPacket *pkt, int block)
     }
 
      //解锁
-    //pthread_mutex_unlock(&q->mutex);
+    pthread_mutex_unlock(&q->mutex);
     return ret ;
 }
 
@@ -482,6 +562,14 @@ void packet_queue_clean(PacketQueue *q)
 // 准备解码
 void *prepareAsync(void *arg)
 {
+    // 判断当前是否在播放
+    while(playStatus->isARunning || playStatus->isVRunning)
+    {
+        playStatus->isPlay = false ;
+        playStatus->play_status = PLAY_STATUS_STOP;
+        usleep(0.5*1000*1000);
+    }
+    init_params();
     playStatus->play_status = PLAY_STATUS_PREPARE ;
     AVCodecContext *codecCtx = NULL;
     AVCodec *codec = NULL;
@@ -489,21 +577,18 @@ void *prepareAsync(void *arg)
     AVCodecContext *acodeCtx = NULL;
     AVCodec *acodec = NULL ;
 
-    JNIEnv *env = NULL;
-
-    if((*g_jvm)->AttachCurrentThread(g_jvm, &env, NULL) != JNI_OK)
-    {
-        LOGE("AttachCurrentThread--() failed");
-    }
     avFFmpegCtx->pFormatCtx = avformat_alloc_context();
     // 设置参数
     AVDictionary *pAvDic = NULL;
     // 设置http请求头部信息
     av_dict_set(&pAvDic,"user_agent", "android", 0);
 
+    LOGD("media opetator -- avformat_open_input");
     if(avformat_open_input(&avFFmpegCtx->pFormatCtx,playStatus->url,NULL,&pAvDic))
     {
          LOGE("open error");
+         postEventFromNative(MEDIA_ERROR,MEDIA_ERROR_OPENURL,0,NULL);
+         return NULL;
     }
 
     LOGD("avformat_open_input ok");
@@ -511,6 +596,8 @@ void *prepareAsync(void *arg)
     if(avformat_find_stream_info(avFFmpegCtx->pFormatCtx,NULL)<0)
     {
         LOGE("find error");
+        postEventFromNative(MEDIA_ERROR,MEDIA_ERROR_FINDSTREAM,0,NULL);
+        return NULL;
     }
 
     LOGD("find stream ok");
@@ -541,9 +628,9 @@ void *prepareAsync(void *arg)
 
     playStatus->duration = avFFmpegCtx->pFormatCtx->duration ;
     LOGD("duration -- %lld",playStatus->duration);
-    (*env)->CallVoidMethod(env,jPlayMediaJniObj, jni_perpare);
-    // 回调上层
-    (*g_jvm)->DetachCurrentThread(g_jvm);
+    //(*env)->CallVoidMethod(env,jPlayMediaJniObj, jni_perpare);
+    postEventFromNative(MEDIA_PREPARED,0,0,NULL);
+
     return NULL;
 }
 
@@ -557,12 +644,16 @@ void decode_video_stream()
     if(!codec)
     {
         LOGE("can not decode video,Unsupport codec id = %d",codecCtx->codec_id);
+        postEventFromNative(MEDIA_ERROR,MEDIA_ERROR_FIND_VIDEO_DECODE,0,NULL);
+        return ;
     }
 
     LOGD("the video codec id = %d",codecCtx->codec_id);
     if(avcodec_open2(codecCtx,codec,NULL) < 0)
     {
         LOGE("video avcodec_open2 error");
+        postEventFromNative(MEDIA_ERROR,MEDIA_ERROR_OPEN_VIDEO_DECODE,0,NULL);
+        return ;
     }
 
     playStatus->videoWdith = codecCtx->width ; 
@@ -581,27 +672,31 @@ void decode_audio_stream()
     if(!acodec)
     {
         LOGE("can not decode audio,Unsupport codec id = %d",acodeCtx->codec_id);
+        postEventFromNative(MEDIA_ERROR,MEDIA_ERROR_FIND_AUDIO_DECODE,0,NULL);
+        return ;
     }
     // 解码音频
     if(avcodec_open2(acodeCtx,acodec,NULL)<0)
     {
         LOGE("audio avcodec_open2 error");
+        postEventFromNative(MEDIA_ERROR,MEDIA_ERROR_OPEN_AUDIO_DECODE,0,NULL);
+        return ;
     }
-
-    int audioSampleRate = (int)(acodeCtx->sample_rate * playStatus->speed) ;
-    LOGD("InitAudio --- %d %d %lld channels=%d ",acodeCtx->sample_rate, audioSampleRate,acodeCtx->channel_layout,acodeCtx->channels);
+    int out_sample_rate = DTS_SAMPLE_RATE;
+    playStatus->sample_rate_speed = (int)(out_sample_rate * playStatus->speed) ;
+    LOGD("InitAudio --- %d %d %f %lld channels=%d ",acodeCtx->sample_rate, playStatus->sample_rate_speed,playStatus->speed,acodeCtx->channel_layout,acodeCtx->channels);
     // 参数为采样率和声道数  
-    playStatus->tempoStream_ = sonicCreateStream(acodeCtx->sample_rate,acodeCtx->channels);
+    playStatus->tempoStream_ = sonicCreateStream(out_sample_rate,acodeCtx->channels);
     // 设置速率
     sonicSetSpeed(playStatus->tempoStream_, playStatus->speed);  
     sonicSetPitch(playStatus->tempoStream_, 1.0);
     sonicSetRate(playStatus->tempoStream_, 1.0/playStatus->speed);   
 
-    playStatus->sample_rate = acodeCtx->sample_rate;
+    playStatus->sample_rate = out_sample_rate;
     playStatus->is16Bit = 1;
     playStatus->isStereo = acodeCtx->channels > 1;
     playStatus->desiredFrames = 4096;
-
+    playStatus->channels = acodeCtx->channels;
 
 }
 
@@ -635,6 +730,7 @@ void *recv_thread(void *arg)
 
         if(!playStatus->isPlay)
         {
+            LOGD("recv_thread stop");
             playStatus->isReadStop = true ;
             break;
         }
@@ -694,7 +790,7 @@ void *recv_thread(void *arg)
             av_free_packet(packet);
         }
     }
-
+    LOGD("recv_thread exit");
     playStatus->play_status = PLAY_STATUS_STOP;
     return NULL;
 }
@@ -736,6 +832,7 @@ void *video_thread(void *arg)
     }
     while(1)
     {
+        
         if(playStatus->isReadStop)
         {
             LOGD("video stop play");
@@ -747,6 +844,7 @@ void *video_thread(void *arg)
             usleep(RESUME_WAITINH_TIME);
             continue;
         }
+        playStatus->isVRunning = true ;
         LOGD("video_thread --- packet_queue_get 111");
         if(packet_queue_get(&playStatus->videoq,packet,1) < 0)
         {
@@ -754,8 +852,10 @@ void *video_thread(void *arg)
             usleep(RESUME_WAITINH_TIME);
             continue ;
         }
+        double time1 = nowTime();
         LOGD("[video_thread] avcodec_decode_video2");
         avcodec_decode_video2(codecCtx,pFrame,&frameFinished,packet);
+        double time2 = nowTime();
         //--------------以下是音视频同步相关
         pts = 0 ;
         if (packet->dts == AV_NOPTS_VALUE && pFrame->opaque
@@ -781,7 +881,7 @@ void *video_thread(void *arg)
             // 保存
             playStatus->frame_last_delay = delay;
             playStatus->frame_last_pts = pts;
-
+            pts = pts - playStatus->last_show_time;
             diff = pts - ref_clock;
 
             LOGE("show time -- pts audioclock %lf %lf", pts,ref_clock);
@@ -815,7 +915,7 @@ void *video_thread(void *arg)
                 LOGE("show time -- sleep frame =%lf", diff);
                 usleep(diff*1000*1000);
             }
-            else if(diff < -0.01)
+            else if(diff < - 0.01)
             {
                 LOGE("show time -- drop frame =%lf", diff);
                 continue ; // 丢帧````````
@@ -826,9 +926,19 @@ void *video_thread(void *arg)
 
         if(frameFinished)
         {
+             double time3 = nowTime();
             sws_scale(sws_ctx, (uint8_t const * const *)pFrame->data, pFrame->linesize, 0,
             codecCtx->height, pFrameRGB->data, pFrameRGB->linesize);
+            // 计算显示时间
             call_back_videodata((const char *)buffer, codecCtx->width, codecCtx->height,env);
+            double time4 = nowTime();
+            playStatus->last_show_time = (time4 - time3) + (time2 - time1) ;
+            if(playStatus->last_show_time > 2)
+                playStatus->last_show_time = 2;
+            else if(playStatus->last_show_time < -2)
+                playStatus->last_show_time = -2;
+            playStatus->last_show_time += 0.2;
+            LOGD("time1 = %f time2 = %f time3= %f tim4= %f diff = %f",time1,time2,time3,time4,playStatus->last_show_time);
         }
 
     }
@@ -839,6 +949,7 @@ void *video_thread(void *arg)
     packet_queue_destory(&playStatus->videoq);
     LOGD("video thread exit");
     (*g_jvm)->DetachCurrentThread(g_jvm);
+    playStatus->isVRunning = false ;
     return NULL;
 }
 
@@ -874,6 +985,7 @@ void *audio_thread(void *arg)
             usleep(RESUME_WAITINH_TIME);
             continue;
         }
+        playStatus->isARunning = true ;
         //LOGD("[audio_thread] packet_queue_get");
         if(packet_queue_get(&playStatus->audioq,packet,1) < 0)
         {
@@ -931,8 +1043,17 @@ void *audio_thread(void *arg)
                 {
                     uint64_t in_channel_layout = av_get_default_channel_layout(acodeCtx->channels);
                     uint64_t out_channel_layout = av_get_default_channel_layout(out_channels);
-                    pSwrCtx = swr_alloc_set_opts(NULL, out_channel_layout, AV_SAMPLE_FMT_S16, acodeCtx->sample_rate,
-                    in_channel_layout, acodeCtx->sample_fmt, acodeCtx->sample_rate, 0, NULL);
+
+                    //struct SwrContext *swr_alloc_set_opts(struct SwrContext *s,
+                    //                  int64_t out_ch_layout, enum AVSampleFormat out_sample_fmt, int out_sample_rate,
+                    //                  int64_t  in_ch_layout, enum AVSampleFormat  in_sample_fmt, int  in_sample_rate,
+                    //                  int log_offset, void *log_ctx);
+
+                    pSwrCtx = swr_alloc_set_opts(NULL, out_channel_layout, AV_SAMPLE_FMT_S16, DTS_SAMPLE_RATE,
+                        in_channel_layout, acodeCtx->sample_fmt, acodeCtx->sample_rate, 0, NULL);
+
+                    //pSwrCtx = swr_alloc_set_opts(NULL, out_channel_layout, AV_SAMPLE_FMT_S16, acodeCtx->sample_rate,
+                    //in_channel_layout, acodeCtx->sample_fmt, acodeCtx->sample_rate, 0, NULL);
                     swr_init(pSwrCtx);
                 }
 
@@ -952,14 +1073,16 @@ void *audio_thread(void *arg)
                         //LOGD("show time audio_clock:%lf",audio_clock);
                         pAFrameCache->linesize[0] = pAFrame->linesize[0] = ret * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16) * out_channels;
                     }
-                    //LOGD("NO S16 +++ fmt=%d size=%d size=%d channels=%d",acodeCtx->sample_fmt,dst_buf_size,pAFrame->linesize[0],out_channels);
-                    int ret1 = sonicWriteShortToStream(playStatus->tempoStream_, (short *)pAFrame->data[0], dst_buf_size/(2*out_channels)); 
                     // 计算处理后的点数  
                     int numSamples = dst_buf_size / (2*out_channels);  
+                    //LOGD("NO S16 +++ fmt=%d size=%d size=%d channels=%d",acodeCtx->sample_fmt,dst_buf_size,pAFrame->linesize[0],out_channels);
+                    int ret1 = sonicWriteShortToStream(playStatus->tempoStream_, (short *)pAFrame->data[0], numSamples); 
+                    
+                    LOGD("NO S16 --- numSamples=%d channels=%d dst_buf_size=%d",numSamples,out_channels,dst_buf_size);
                     if(ret1) {  
                     // 从流中读取处理好的数据  
                        int new_buffer_size = sonicReadShortFromStream(playStatus->tempoStream_, (short *)pAFrame->data[0], numSamples);  
-                    }  
+                    } 
                     call_back_aduiodata(pAFrame,env);
                 }
             }
@@ -971,6 +1094,7 @@ void *audio_thread(void *arg)
     packet_queue_destory(&playStatus->audioq);
     LOGD("audio thread exit");
     (*g_jvm)->DetachCurrentThread(g_jvm);
+    playStatus->isARunning = false ;
     return NULL;
 }
 
@@ -1008,6 +1132,19 @@ void call_back_aduiodata(AVFrame *frame,JNIEnv *env )
     (*env)->SetByteArrayRegion(env,carr,0,frame->linesize[0],(const jbyte *)frame->data[0]);
     (*env)->CallVoidMethod(env,jPlayMediaJniObj,jni_flush_audio_byte_data,carr);
     (*env)->DeleteLocalRef(env, carr);
+}
+
+void postEventFromNative(jint what,jint arg1,jint arg2,jobject obj)
+{
+    JNIEnv *env = NULL;
+    if((*g_jvm)->AttachCurrentThread(g_jvm, &env, NULL) != JNI_OK)
+    {
+        LOGE("AttachCurrentThread() failed");
+        return ;
+    }
+    (*env)->CallVoidMethod(env,jPlayMediaJniObj,jni_postEventFromNative,what,arg1,arg2,obj);
+
+    (*g_jvm)->DetachCurrentThread(g_jvm);
 }
 
 int hasVideo()

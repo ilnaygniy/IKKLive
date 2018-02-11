@@ -1,6 +1,7 @@
 package com.jqh.jmedia;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.view.SurfaceHolder;
@@ -47,6 +48,7 @@ public class SurfaceDraw {
     }
     public boolean isDraw = false ;
     public synchronized void  DrawImage(byte[] bytes) {
+
         Canvas canvas = null ;
         isDraw = true ;
         try {
@@ -70,13 +72,14 @@ public class SurfaceDraw {
                 } else {
                     matrix.postScale(scaleHeight, scaleHeight);
                 }
-                // matrix.setRotate(90);
+                 matrix.setRotate(90);
                 bmpScale = Bitmap.createBitmap(bmpOriginal, 0, 0,
                         bmpOriginal.getWidth(), bmpOriginal.getHeight(), matrix,
                         true);
                 fStartX = (float)(canvas.getWidth() - bmpScale.getWidth()) / 2;
                 fStartY = (float)(canvas.getHeight() - bmpScale.getHeight()) / 2;
             }
+          //  matrix.setRotate(90);
             bmpScale = Bitmap.createBitmap(bmpOriginal, 0, 0,
                     bmpOriginal.getWidth(), bmpOriginal.getHeight(), matrix,
                     true);

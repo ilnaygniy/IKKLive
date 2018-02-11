@@ -17,7 +17,6 @@ import android.view.WindowManager;
 import android.widget.LinearLayout;
 
 import com.jqh.ikkavlivemodule.utils.DataUtils;
-import com.tencent.livesdk.ILVLiveManager;
 
 /**
  * Created by jiangqianghua on 18/1/30.
@@ -162,6 +161,7 @@ public class AVRootView extends SurfaceView implements SurfaceHolder.Callback,Ca
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
         CameraManager.getInstance().setCameraParameters(screenWidth,screenHeight);
+        IKKLiveManager.getInstance().startLive();
     }
 
     @Override
@@ -178,4 +178,5 @@ public class AVRootView extends SurfaceView implements SurfaceHolder.Callback,Ca
     public void onPictureTaken(byte[] data, Camera camera) {
 
     }
+
 }
