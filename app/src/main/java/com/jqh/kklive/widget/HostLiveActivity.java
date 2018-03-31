@@ -6,6 +6,7 @@ import android.text.TextUtils;
 import android.view.View;
 import android.widget.Toast;
 
+import com.jqh.ikkavlivemodule.AVRootView;
 import com.jqh.kklive.AppManager;
 import com.jqh.kklive.R;
 import com.jqh.kklive.im.IKKIMManager;
@@ -45,6 +46,7 @@ public class HostLiveActivity extends BaseActivity {
     private GiftFullView giftFullView ;
     private HeartLayout heartLayout ;
     private TitleView mTitleView ;
+    private AVRootView mAVRootView;
 
     @Override
     protected int getLayoutId() {
@@ -65,6 +67,8 @@ public class HostLiveActivity extends BaseActivity {
         setDefault();
         mBottomControllView.setHostLive();
         mTitleView.setHost(AppManager.getUserProfile());
+
+        mAVRootView = bindViewId(R.id.live_view);
     }
 
     @Override
@@ -289,6 +293,12 @@ public class HostLiveActivity extends BaseActivity {
             }
         });
 
+        mAVRootView.setOnAVRootViewListener(new AVRootView.OnAVRootViewListener() {
+            @Override
+            public void onSurfaceCreated() {
+                mAVRootView.openCamera(false);
+            }
+        });
         initIMChat();
 
     }
@@ -336,14 +346,17 @@ public class HostLiveActivity extends BaseActivity {
 
         @Override
         public void onCameraClick() {
-//            int cameraId = hostControlState.getCameraid();
-//            if (cameraId == ILiveConstants.FRONT_CAMERA) {
+
+            //int cameraId = hostControlState.getCameraid();
+            if (mAVRootView.isBackCamera()) {
 //                ILiveRoomManager.getInstance().switchCamera(ILiveConstants.BACK_CAMERA);
 //                hostControlState.setCameraid(ILiveConstants.BACK_CAMERA);
-//            } else if (cameraId == ILiveConstants.BACK_CAMERA) {
+                mAVRootView.openCamera(false);
+            } else  {
 //                ILiveRoomManager.getInstance().switchCamera(ILiveConstants.FRONT_CAMERA);
 //                hostControlState.setCameraid(ILiveConstants.FRONT_CAMERA);
-//            }
+                mAVRootView.openCamera(true);
+            }
         }
     };
 
@@ -382,6 +395,8 @@ public class HostLiveActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if(mAVRootView != null)
+            mAVRootView.destroy();
         quitRoom();
     }
 

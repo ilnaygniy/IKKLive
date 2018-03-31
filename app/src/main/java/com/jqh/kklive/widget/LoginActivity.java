@@ -95,7 +95,8 @@ public class LoginActivity extends BaseActivity {
             public void onClick(View v) {
                 //注册
                 Intent intent = new Intent();
-                intent.setClass(LoginActivity.this,RegisterActivity.class);
+                //intent.setClass(LoginActivity.this,RegisterActivity.class);
+                intent.setClass(LoginActivity.this,PushAVStreamActivity.class);
                 startActivity(intent);
             }
         });

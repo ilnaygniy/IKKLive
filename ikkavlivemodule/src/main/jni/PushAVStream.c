@@ -367,6 +367,7 @@ JNIEXPORT int Java_com_jqh_jmedia_JMediaJni_flushStreamData(JNIEnv *env,jobject 
 		LOGD("push --- video ");
 		// 视频
 		memcpy(videostatus->pFrameYUV->data[0],in,videostatus->y_length);
+		LOGD("push --- video memcpy end %d",videostatus->y_length);
 		videostatus->pFrameYUV->pts = commonStatus->v_count ;
 		int i = 0 ;
 		for(i = 0 ; i < videostatus->uv_length; i++)
@@ -384,6 +385,7 @@ JNIEXPORT int Java_com_jqh_jmedia_JMediaJni_flushStreamData(JNIEnv *env,jobject 
 		time_base1 = videostatus->video_st->time_base;
 		pCodecCtx = videostatus->pCodecCtx;
 		av_stream = videostatus->video_st ;
+		LOGD("push --- video options end ");
 
 	}
 	else if(ji == 0)

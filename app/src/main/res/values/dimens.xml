@@ -11,6 +11,7 @@
     <dimen name="round_small_radius">15dp</dimen>
     <dimen name="round_small_dius">30dp</dimen>
     <dimen name="dimen_6dp">6dp</dimen>
+    <dimen name="fab_margin">16dp</dimen>
 
 
 </resources>

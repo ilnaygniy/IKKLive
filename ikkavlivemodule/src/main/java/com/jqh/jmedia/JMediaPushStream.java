@@ -12,6 +12,7 @@ public class JMediaPushStream {
     private SurfaceDraw mSurfaceDraw ;
 
     private SurfaceHolder holder  ;
+
     public JMediaPushStream(){
         if(mSurfaceDraw == null)
             mSurfaceDraw = new SurfaceDraw();

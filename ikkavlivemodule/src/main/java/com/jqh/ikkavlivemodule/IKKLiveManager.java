@@ -16,9 +16,12 @@ public class IKKLiveManager {
 
     private static IKKLiveManager instance ;
 
+    public static String streamURL = "rtmp://livemediabspb.xdfkoo.com/mediaserver/live334422113";
+
+    public boolean isLive = false ;
     private IKKLiveManager(){
         mJMediaPushStream = new JMediaPushStream();
-        mPcmRecordThread = new PcmRecordThread();
+
     }
 
     public static IKKLiveManager getInstance(){
@@ -44,15 +47,20 @@ public class IKKLiveManager {
     }
 
     public void startLive(){
-        String filePath = "rtmp://livemediabspb.xdfkoo.com/mediaserver/live334422113";
+        String filePath = streamURL;
         mJMediaPushStream.publicStreamInit(filePath,viewW,viewH);
+        mPcmRecordThread = new PcmRecordThread();
         mPcmRecordThread.start();
+        isLive = true ;
     }
 
     public void stopLive(){
-        mPcmRecordThread.stopRecord();
-        mPcmRecordThread.stop();
-        mJMediaPushStream.stopStream();
+        if(isLive) {
+            mPcmRecordThread.stopRecord();
+            // mPcmRecordThread.stop();
+            mJMediaPushStream.stopStream();
+        }
+        isLive = false ;
     }
 
     public void flushVideoData(byte[] data)
@@ -95,10 +103,11 @@ public class IKKLiveManager {
         }
 
         public void stopRecord() {
-            isRecording = false;
-            audioRecord.stop();
-            audioRecord.release();
-            audioRecord = null;
+            if(isRecording) {
+                isRecording = false;
+                audioRecord.stop();
+                audioRecord.release();
+            }
         }
     }
 

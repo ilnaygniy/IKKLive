@@ -29,7 +29,15 @@ public class AVRootView extends SurfaceView implements SurfaceHolder.Callback,Ca
     private int screenHeight;
     private String screenRate;
     private Context mContext ;
+    private OnAVRootViewListener mOnAVRootViewListener;
 
+    public interface OnAVRootViewListener{
+        void onSurfaceCreated();
+    }
+
+    public void setOnAVRootViewListener(OnAVRootViewListener mOnAVRootViewListener) {
+        this.mOnAVRootViewListener = mOnAVRootViewListener;
+    }
 
     public AVRootView(Context context) {
         super(context);
@@ -147,26 +155,25 @@ public class AVRootView extends SurfaceView implements SurfaceHolder.Callback,Ca
         return degree;
     }
 
-    private void destroyCamera() {
+    public void destroy() {
         CameraManager.getInstance().destroyCamera();
         getHolder().getSurface().release();
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        CameraManager.getInstance().openCamera(holder,this,getPreviewDegree(mContext));
-        CameraManager.getInstance().startPreview();
+        if(mOnAVRootViewListener != null)
+            mOnAVRootViewListener.onSurfaceCreated();
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-        CameraManager.getInstance().setCameraParameters(screenWidth,screenHeight);
-        IKKLiveManager.getInstance().startLive();
+
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-        destroyCamera();
+        destroy();
     }
 
     @Override
@@ -178,5 +185,26 @@ public class AVRootView extends SurfaceView implements SurfaceHolder.Callback,Ca
     public void onPictureTaken(byte[] data, Camera camera) {
 
     }
+
+    /**
+     * 切换摄像头
+     * @param isBack
+     */
+    public void openCamera(boolean isBack){
+        IKKLiveManager.getInstance().stopLive();
+        CameraManager.getInstance().switchCamera(getHolder(),DataUtils.degree,isBack , screenWidth,screenHeight);
+        IKKLiveManager.getInstance().startLive();
+    }
+
+    public void setStreamURL(String streamURL){
+
+    }
+
+    public boolean isBackCamera(){
+        return CameraManager.getInstance().isBackCamera();
+    }
+
+
+
 
 }

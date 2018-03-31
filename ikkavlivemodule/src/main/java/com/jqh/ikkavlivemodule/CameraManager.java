@@ -1,8 +1,11 @@
 package com.jqh.ikkavlivemodule;
 
+import android.graphics.ImageFormat;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.os.Build;
+import android.provider.ContactsContract;
+import android.util.Log;
 import android.view.SurfaceHolder;
 
 import com.jqh.ikkavlivemodule.utils.DataUtils;
@@ -24,7 +27,7 @@ public class CameraManager {
 
     public static final int TYPE_PREVIEW = 0;
     public static final int TYPE_PICTURE = 1;
-    public static final int ALLOW_PIC_LEN = 2000;       //最大允许的照片尺寸的长度   宽或者高
+    public static final int ALLOW_PIC_LEN = 800;       //最大允许的照片尺寸的长度   宽或者高
 
     private int cameraPosition;
 
@@ -39,26 +42,55 @@ public class CameraManager {
             return instance;
         }
 
+        public boolean isBackCamera(){
+            return cameraPosition == Camera.CameraInfo.CAMERA_FACING_BACK;
+        }
         /**
          * 打开摄像头
          *
          * @param holder
-         * @param autoFocusCallback
          * @param degree
          */
-        public void openCamera(SurfaceHolder holder, Camera.AutoFocusCallback autoFocusCallback, int degree) {
+        public void openCamera(SurfaceHolder holder, boolean isBack ,int degree) {
             try {
+                if(camera != null) {
+                    camera.setPreviewCallback(null);
+                    camera.stopPreview();//停掉原来摄像头的预览
+                    camera.release();//释放资源
+                    camera = null;//取消原来摄像头
+                }
                 //初始化摄像头
-                cameraPosition = Camera.CameraInfo.CAMERA_FACING_BACK;
+                if(isBack)
+                    cameraPosition = Camera.CameraInfo.CAMERA_FACING_BACK;
+                else
+                    cameraPosition = Camera.CameraInfo.CAMERA_FACING_FRONT;
                 // 打开摄像头
                 camera = Camera.open(cameraPosition);
                 // 设置用于显示拍照影像的SurfaceHolder对象
                 camera.setPreviewDisplay(holder);
                 camera.setDisplayOrientation(degree);
-                camera.autoFocus(autoFocusCallback);
+                //camera.autoFocus(autoFocusCallback);
+                // 实现自动对焦
+                camera.autoFocus(new Camera.AutoFocusCallback() {
+                    @Override
+                    public void onAutoFocus(boolean success, Camera camera) {
+                        if (success) {
+                            camera.cancelAutoFocus();// 只有加上了这一句，才会自动对焦
+                            doAutoFocus();
+                        }
+                    }
+                });
+
+                camera.setPreviewCallback(new Camera.PreviewCallback() {
+                    @Override
+                    public void onPreviewFrame(byte[] data, Camera camera) {
+                        Log.d("flushVideoData","data length "+data.length);
+                        IKKLiveManager.getInstance().flushVideoData(data);
+                    }
+                });
 
             } catch (Exception e) {
-    //                e.printStackTrace();
+                e.printStackTrace();
                 camera.release();
                 camera = null;
             }
@@ -70,15 +102,17 @@ public class CameraManager {
         public void setCameraParameters(int screenWidth, int screenHeight) {
             try {
                 if (camera != null) {
+                   // camera.stopPreview();
                     Camera.Parameters parameters = camera.getParameters();//获取各项参数
                     Camera.Size previewSize = findFitPreResolution(parameters);
+                    //240*160  144*176 288*352  240:320
                     parameters.setPreviewSize(previewSize.width, previewSize.height);// 设置预览大小
                     IKKLiveManager.getInstance().setVideoSize(previewSize.width,previewSize.height);
-                    parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
-                    parameters.setPictureFormat(PixelFormat.JPEG);//设置图片格式
+                    //parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+                    //parameters.setPictureFormat(PixelFormat.JPEG);//设置图片格式
                     //不能与setPreviewSize一起使用，否则setParamters会报错
     //                    parameters.setPreviewFrameRate(5);//设置每秒显示4帧
-                    parameters.setJpegQuality(80);// 设置照片质量
+                    //parameters.setJpegQuality(80);// 设置照片质量
                     Camera.Size pictureSize = null;
                     if (equalRate(screenWidth, screenHeight, 1.33f)) {
                         pictureSize = findFitPicResolution(parameters, (float) 4 / 3);
@@ -87,26 +121,11 @@ public class CameraManager {
                     }
 
                     parameters.setPictureSize(pictureSize.width, pictureSize.height);// 设置保存的图片尺寸
+                    parameters.setPreviewFormat(ImageFormat.NV21);
+                    parameters.set("jpeg-quality",100);
+
                     camera.setParameters(parameters);
-                    camera.startPreview();
-
-                    // 实现自动对焦
-                    camera.autoFocus(new Camera.AutoFocusCallback() {
-                        @Override
-                        public void onAutoFocus(boolean success, Camera camera) {
-                            if (success) {
-                                camera.cancelAutoFocus();// 只有加上了这一句，才会自动对焦
-                                doAutoFocus();
-                            }
-                        }
-                    });
-
-                    camera.setPreviewCallback(new Camera.PreviewCallback() {
-                        @Override
-                        public void onPreviewFrame(byte[] data, Camera camera) {
-                            IKKLiveManager.getInstance().flushVideoData(data);
-                        }
-                    });
+                    camera.startPreview();//开始预览
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -116,7 +135,7 @@ public class CameraManager {
         // 自动对焦
         // handle button auto focus
         private void doAutoFocus() {
-            if(cameraPosition != Camera.CameraInfo.CAMERA_FACING_BACK)
+            if(cameraPosition == Camera.CameraInfo.CAMERA_FACING_FRONT)
                 return ;
             final Camera.Parameters parameters1 = camera.getParameters();
             parameters1.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
@@ -146,48 +165,13 @@ public class CameraManager {
          * 摄像头切换
          *
          * @param holder
-         * @param autoFocusCallback
          * @param degree
          */
-        public void turnCamera(SurfaceHolder holder, Camera.AutoFocusCallback autoFocusCallback, int degree, int screenWidth, int screenHeight) {
+        public void switchCamera(SurfaceHolder holder, int degree,boolean isBack, int screenWidth, int screenHeight) {
             //切换前后摄像头
             //现在是后置，变更为前置
-            if (camera != null && cameraPosition == Camera.CameraInfo.CAMERA_FACING_BACK) {
-                camera.stopPreview();//停掉原来摄像头的预览
-                camera.release();//释放资源
-                camera = null;//取消原来摄像头
-                camera = Camera.open(Camera.CameraInfo.CAMERA_FACING_FRONT);//打开当前选中的摄像头
-                try {
-                    camera.setPreviewDisplay(holder);//通过surfaceview显示取景画面
-                    camera.setDisplayOrientation(degree);
-                    camera.autoFocus(autoFocusCallback);
-                    setCameraParameters(screenWidth, screenHeight);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                camera.startPreview();//开始预览
-                cameraPosition = Camera.CameraInfo.CAMERA_FACING_FRONT;
-                DataUtils.isBackCamera = false;
-            } else if (cameraPosition == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-                //代表摄像头的方位，CAMERA_FACING_FRONT前置
-                // CAMERA_FACING_BACK后置
-                //现在是前置， 变更为后置
-                camera.stopPreview();//停掉原来摄像头的预览
-                camera.release();//释放资源
-                camera = null;//取消原来摄像头
-                camera = Camera.open(Camera.CameraInfo.CAMERA_FACING_BACK);//打开当前选中的摄像头
-                try {
-                    camera.setPreviewDisplay(holder);//通过surfaceview显示取景画面
-                    camera.setDisplayOrientation(degree);
-                    camera.autoFocus(autoFocusCallback);
-                    setCameraParameters(screenWidth, screenHeight);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                camera.startPreview();//开始预览
-                cameraPosition = Camera.CameraInfo.CAMERA_FACING_BACK;
-                DataUtils.isBackCamera = true;
-            }
+            openCamera(holder,isBack,degree);
+            setCameraParameters(screenWidth, screenHeight);
         }
 
 
@@ -197,6 +181,7 @@ public class CameraManager {
         public void destroyCamera() {
             if (camera != null) {
                 //当surfaceview关闭时，关闭预览并释放资源
+                camera.setPreviewCallback(null);
                 camera.stopPreview();
                 camera.release();//释放相机
                 camera = null;
@@ -218,7 +203,9 @@ public class CameraManager {
      * 停止拍摄
      */
     public void stopPreview() {
-        camera.stopPreview();
+        //camera.setPreviewCallback(null);
+        if(camera != null)
+            camera.stopPreview();
     }
 
         private boolean equalRate(int width, int height, float rate) {

@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- 调用摄像头权限 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <uses-feature
         android:name="android.hardware.camera"
         android:required="true" />
@@ -33,10 +34,16 @@
         <activity android:name=".widget.RegisterActivity" />
         <activity android:name=".widget.EditProfileActivity" />
         <activity android:name=".widget.CreateLiveActivity" />
-        <activity android:name=".widget.HostLiveActivity"
-            android:windowSoftInputMode="adjustResize"/>
-        <activity android:name=".widget.WatcherActivity"
-            android:windowSoftInputMode="adjustResize"></activity>
+        <activity
+            android:name=".widget.HostLiveActivity"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".widget.WatcherActivity"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".widget.PushAVStreamActivity"
+            android:label="@string/title_activity_main2"
+            android:theme="@style/AppTheme.NoActionBar"></activity>
     </application>
 
 </manifest>
